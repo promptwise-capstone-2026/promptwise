@@ -1,0 +1,27 @@
+# Private capstone references and exported designs
+private/
+references/
+design-exports/
+reports/
+learning-contracts/
+*.docx
+*.pdf
+*.fig
+
+# Secrets and local settings
+.env
+.env.*
+!.env.example
+.vscode/
+.idea/
+
+# Dependencies, generated output, and temporary files
+node_modules/
+dist/
+build/
+coverage/
+.cache/
+*.log
+*.tmp
+.DS_Store
+Thumbs.db
