@@ -24,10 +24,13 @@ adds custom Others input on Home, compact mobile analysis, visual improvements,
 attachment intake and required-field indicators. These additions are current
 user requests rather than verbatim Figma requirements.
 
-AI evaluation and rewriting through OpenAI are proposed. Noah's interpretation
-supports internal API use with manual copying to Copilot; Amara's confirmation
-is pending. This milestone uses the actual local implementation. It must not
-display simulated AI success or claim semantic judgement from keyword checks.
+Amara has conditionally supported internal OpenAI analysis and rewriting,
+provided the updated scope distinguishes this from automatic downstream task
+completion and retains the objectives, assessment requirements and learning
+outcomes. See `docs/AI_SCOPE_AND_EVALUATION.md` for the scope and proposed
+evaluation plan. The running app still uses local rules. This frontend milestone
+must not display simulated AI success or claim semantic judgement from keyword
+checks. Codex will implement the actual AI adapter in a subsequent milestone.
 
 ## Shared logic available now
 
