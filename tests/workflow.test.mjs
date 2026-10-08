@@ -1,18 +1,42 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { TASKS, LEVELS } from '../src/tasks.js';
-import { validateInput, CUSTOM_TASK_MAX_LENGTH } from '../src/validation.js';
-import { analyseWorkflow, improveWorkflow, WorkflowValidationError } from '../src/workflow.js';
+import { validateInput, CUSTOM_TASK_MAX_LENGTH, getValidationFieldMeta } from '../src/validation.js';
+import { analyseWorkflow, improveWorkflow, WorkflowValidationError, analysisFingerprint } from '../src/workflow.js';
 
 const customTask = taskDescription => ({ taskId: 'other', original: 'Help me prepare.', details: { taskDescription } });
 
 test('Others rejects missing and obvious placeholder input without claiming semantic classification', () => {
-  for (const description of ['', '   ', '12345', '!!!', 'Others', 'asdf', 'aaaa aaaa']) {
+  for (const description of ['', '   ', '12345', '!!!', 'Others', 'asdf', 'aaaa aaaa', 'TBD', 'xxx', 'none', 'placeholder', 'todo', 't.b.d.', '  TODO!  ']) {
     const result = validateInput(customTask(description), { stage: 'task' });
     assert.equal(result.valid, false, description);
     assert.ok(result.fields.taskDescription);
   }
   assert.equal(validateInput(customTask('a'.repeat(CUSTOM_TASK_MAX_LENGTH + 1)), { stage: 'task' }).valid, false);
+});
+
+test('personalisation offers distinct actionable guidance and correct file metadata', () => {
+  for (const task of TASKS) {
+    const input = { taskId: task.id, original: 'Explain the ideas in these notes.', details: task.id === 'other' ? { taskDescription: 'Prepare interview questions' } : {} };
+    const { fields } = analyseWorkflow(input);
+    const recommended = fields.filter(field => field.priority === 'recommended');
+    assert.equal(new Set(recommended.map(field => field.guidance)).size, recommended.length, task.id);
+    assert.ok(recommended.every(field => !/^Optional:/i.test(field.placeholder || '')));
+    for (const field of fields.filter(field => ['source', 'code', 'draft', 'criteria'].includes(field.key))) {
+      assert.equal(field.material.accept, '.txt,.md,text/plain,text/markdown');
+      assert.ok(field.material.purpose);
+      assert.equal(getValidationFieldMeta(field.key).stage, 'generation');
+    }
+  }
+  const study = analyseWorkflow({ taskId: 'study', original: 'Explain phishing.' });
+  assert.equal(study.fields.find(field => field.key === 'currentKnowledge').priority, 'optional');
+});
+
+test('analysis fingerprints cover actual inputs and are stable across object ordering', () => {
+  const input = { taskId: 'study', original: 'Explain phishing.', details: { context: 'Tutorial', focus: 'Warning signs' }, preferences: { tone: 'Academic', level: 'Undergraduate' } };
+  assert.equal(analysisFingerprint(input), analysisFingerprint({ ...input, details: { focus: 'Warning signs', context: 'Tutorial' }, preferences: { level: 'Undergraduate', tone: 'Academic' } }));
+  assert.equal(analyseWorkflow(input).inputFingerprint, analysisFingerprint(input));
+  assert.notEqual(analysisFingerprint(input), analysisFingerprint({ ...input, details: { ...input.details, context: 'Exam revision' } }));
 });
 
 test('legitimate short and multilingual task descriptions are not blocked by a keyword whitelist', () => {

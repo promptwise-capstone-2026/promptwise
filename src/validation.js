@@ -1,11 +1,24 @@
-import { TASKS, FORMATS, LEVELS, TONES, DEPTHS } from './tasks.js';
+import { TASKS, FORMATS, LEVELS, TONES, DEPTHS, PREFERENCE_LABELS } from './tasks.js';
 
 // Prototype limit for a task label, not a report requirement or a semantic test.
 export const CUSTOM_TASK_MAX_LENGTH = 240;
 const stages = new Set(['task', 'analysis', 'generation']);
-const placeholderTasks = new Set(['other', 'others', 'something', 'anything', 'test', 'testing', 'asdf', 'asdasd', 'qwerty', 'n/a']);
+const placeholderTasks = new Set(['other', 'others', 'something', 'anything', 'test', 'testing', 'asdf', 'asdasd', 'qwerty', 'na', 'tbd', 'xxx', 'none', 'placeholder', 'todo']);
 const text = value => typeof value === 'string' ? value.trim() : '';
 const record = value => value !== null && typeof value === 'object' && !Array.isArray(value);
+
+// Stages belong to the shared workflow; the UI maps them to its own screens.
+export function getValidationFieldMeta(key) {
+  if (key === 'taskId') return { stage: 'task', order: 0 };
+  if (key === 'taskDescription') return { stage: 'task', order: 1 };
+  if (key === 'original') return { stage: 'analysis', order: 2 };
+  const preferences = [...Object.keys(PREFERENCE_LABELS), 'otherFormat'];
+  if (preferences.includes(key)) return { stage: 'generation', order: 4 + preferences.indexOf(key) };
+  if (key === 'constraints' || TASKS.some(task => task.fields.some(field => field.key === key))) {
+    return { stage: 'generation', order: 3 };
+  }
+  return null;
+}
 
 /** Basic form checks only. These checks cannot establish academic suitability. */
 export function validateInput(input = {}, { stage = 'analysis' } = {}) {
@@ -33,7 +46,7 @@ export function validateInput(input = {}, { stage = 'analysis' } = {}) {
       fields.taskDescription = 'Describe the academic task you are working on.';
     } else if (description.length > CUSTOM_TASK_MAX_LENGTH) {
       fields.taskDescription = `Keep the task description within ${CUSTOM_TASK_MAX_LENGTH} characters.`;
-    } else if (!/\p{L}/u.test(description) || placeholderTasks.has(description.toLowerCase()) || /^([\p{L}\p{N}])\1{3,}$/u.test(compact)) {
+    } else if (!/\p{L}/u.test(description) || placeholderTasks.has(compact) || /^([\p{L}\p{N}])\1{3,}$/u.test(compact)) {
       fields.taskDescription = 'Describe a real task, such as preparing interview questions for a research project.';
     } else {
       // Accept short or unfamiliar descriptions rather than reject valid tasks

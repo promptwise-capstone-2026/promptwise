@@ -108,3 +108,11 @@ The UI currently keeps the following itself; each will drift if shared definitio
 
 No browser tests were added to the repository, because test ownership sits with Codex. The CDP harness and
 scripts used here could be adapted into dependency-free UI tests if the team wants them in `tests/`.
+
+## Subsequent Codex integration review
+
+On 8 October, Codex reproduced and fixed the private-file route, resolved the
+shared wording and placeholder findings, and moved duplicated definitions into
+shared modules consumed by this frontend. The current cache is `promptwise-v3`.
+The verification above remains Claude's milestone record; independent checks,
+changes and remaining work are recorded in `docs/INTEGRATION_REVIEW.md`.

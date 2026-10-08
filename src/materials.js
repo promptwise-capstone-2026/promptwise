@@ -1,5 +1,12 @@
 export const TEXT_MATERIAL_MAX_BYTES = 1_000_000;
 export const TEXT_MATERIAL_ACCEPT = '.txt,.md,text/plain,text/markdown';
+export const TEXT_MATERIAL_LIMIT_LABEL = `${TEXT_MATERIAL_MAX_BYTES / 1_000_000} MB`;
+export const MATERIAL_FIELDS = Object.fromEntries(Object.entries({
+  source: 'Added to your prompt as the material to work from.',
+  code: 'Added to your prompt as the code to explain or debug.',
+  draft: 'Added to your prompt as your own draft or notes for feedback.',
+  criteria: 'Added to your prompt as the requirements the response should follow.'
+}).map(([key, purpose]) => [key, { purpose, accept: TEXT_MATERIAL_ACCEPT, limitLabel: TEXT_MATERIAL_LIMIT_LABEL }]));
 
 export class MaterialError extends Error {
   constructor(code, message) {

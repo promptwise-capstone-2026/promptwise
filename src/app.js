@@ -1,7 +1,7 @@
-import { TASKS, FORMATS, LEVELS, TONES, DEPTHS } from './tasks.js';
-import { validateInput, CUSTOM_TASK_MAX_LENGTH } from './validation.js';
-import { analyseWorkflow, improveWorkflow, WorkflowValidationError } from './workflow.js';
-import { readTextMaterial, TEXT_MATERIAL_ACCEPT } from './materials.js';
+import { TASKS, FORMATS, LEVELS, TONES, DEPTHS, PREFERENCE_LABELS, getDetailLabel } from './tasks.js';
+import { validateInput, CUSTOM_TASK_MAX_LENGTH, getValidationFieldMeta } from './validation.js';
+import { analyseWorkflow, improveWorkflow, WorkflowValidationError, WORKFLOW_MODES as MODE_LABELS, analysisFingerprint as analysisKeyOf } from './workflow.js';
+import { readTextMaterial } from './materials.js';
 
 const app = document.querySelector('#app');
 const announcer = document.querySelector('#announcer');
@@ -9,22 +9,12 @@ const desktop = window.matchMedia('(min-width: 960px)');
 
 const STEPS = ['Task', 'Prompt', 'Analysis', 'Personalise', 'Compare'];
 const TITLES = ['Choose a task', 'Improve your prompt', 'Prompt Analysis', 'Prompt Personalisation', 'Compare the prompts'];
-const FILE_FIELDS = {
-  source: 'Added to your prompt as the material to work from.',
-  code: 'Added to your prompt as the code to explain or debug.',
-  draft: 'Added to your prompt as your own draft or notes for feedback.',
-  criteria: 'Added to your prompt as the requirements the response should follow.'
-};
 const STATUS = {
   Present: { cls: 'present', icon: '✓' },
   Partial: { cls: 'partial', icon: '◐' },
   Missing: { cls: 'missing', icon: '!' },
   'N/A': { cls: 'na', icon: '–', spoken: 'not applicable' }
 };
-const PREFERENCE_LABELS = { level: 'Educational level', audience: 'Audience', depth: 'Response depth', tone: 'Tone', format: 'Output format' };
-const FIELD_ORDER = ['taskId', 'taskDescription', 'original', 'level', 'audience', 'depth', 'tone', 'format', 'otherFormat'];
-// Display names for workflow modes. An unknown mode is shown by name and never presented as local or AI output.
-const MODE_LABELS = { 'local-rules': { tag: 'Local draft', pill: 'Local rules' } };
 
 const blankState = () => ({
   screen: 0,
@@ -80,7 +70,6 @@ function analysisInput() {
   return { taskId: state.taskId, original: state.original, details, preferences: {} };
 }
 
-const analysisKeyOf = input => JSON.stringify([input.taskId, input.original, input.details.taskDescription || '']);
 const analysisValid = () => Boolean(state.analysis) && state.analysisKey === analysisKeyOf(analysisInput());
 
 function generationInput() {
@@ -91,7 +80,7 @@ function generationInput() {
     if (allowed.has(key) && typeof value === 'string' && value.trim()) details[key] = value;
   }
   const preferences = {};
-  for (const key of ['level', 'audience', 'depth', 'tone', 'format']) {
+  for (const key of Object.keys(PREFERENCE_LABELS)) {
     if (clean(state.preferences[key])) preferences[key] = state.preferences[key];
   }
   if (preferences.format === 'Other') preferences.otherFormat = state.preferences.otherFormat || '';
@@ -285,7 +274,7 @@ function analysisScreen() {
 function fieldLabel(key) {
   const field = (state.analysis?.fields || []).find(item => item.key === key) || taskById(state.taskId)?.fields.find(item => item.key === key);
   if (field) return field.label;
-  return key === 'source' ? 'Relevant source material' : key === 'taskDescription' ? 'Academic task' : key;
+  return getDetailLabel(key, state.taskId);
 }
 
 function optionalCountText() {
@@ -324,9 +313,9 @@ function fileControl(field) {
   const problem = file?.notice || file?.error;
   const error = problem ? `<div class="file-error" id="${id}-file-error"><p>${esc(problem)}</p>${file.error && !['reading', 'pending'].includes(file.status) ? `<button type="button" class="ghost-button small" data-file-action="dismiss" data-field="${key}" data-fk="file-dismiss-${key}">Dismiss${forField}</button>` : ''}</div>` : '';
   return `<div class="file-control">
-    <input type="file" class="file-input" id="${id}-file" data-file-input="${key}" accept="${TEXT_MATERIAL_ACCEPT}" tabindex="-1" aria-hidden="true">
+    <input type="file" class="file-input" id="${id}-file" data-file-input="${key}" accept="${esc(field.material.accept)}" tabindex="-1" aria-hidden="true">
     <button type="button" class="file-button" data-file-pick="${key}" data-fk="file-pick-${key}"${describedBy(`${id}-file-note`, problem ? `${id}-file-error` : '')}><span class="file-icon" aria-hidden="true"></span>Add text from a .txt or .md file<span class="sr-only"> for ${esc(field.label)}</span></button>
-    <p class="file-note" id="${id}-file-note">${esc(FILE_FIELDS[key])} Plain text or Markdown up to 1 MB, read in this browser only. PDF, Word and image files are not supported yet.</p>
+    <p class="file-note" id="${id}-file-note">${esc(field.material.purpose)} Plain text or Markdown up to ${esc(field.material.limitLabel)}, read in this browser only. PDF, Word and image files are not supported yet.</p>
     <div class="file-status">${status}${error}</div>
   </div>`;
 }
@@ -336,7 +325,7 @@ function detailField(field) {
   const value = state.details[field.key] || '';
   const criterion = state.analysis?.criteria.find(row => row.key === field.criterion);
   const help = field.priority === 'recommended' && field.guidance ? field.guidance : '';
-  const fileCapable = field.multiline && FILE_FIELDS[field.key];
+  const fileCapable = field.multiline && field.material;
   const aria = `${invalid(field.key)}${describedBy(help ? `${id}-help` : '', errId(field.key))}`;
   const control = field.multiline
     ? `<textarea id="${id}" class="text-field multiline" data-detail="${field.key}" placeholder="${esc(field.placeholder || '')}" spellcheck="true"${aria}>${esc(value)}</textarea>`
@@ -406,16 +395,16 @@ function personalisationScreen() {
       <section class="form-section pref-column" aria-labelledby="preferences-heading">
         <h2 id="preferences-heading">Response preferences <span class="optional-tag">Optional</span></h2>
         <p class="section-help">Nothing is chosen for you. Tone and depth are preferences, not quality criteria.</p>
-        ${selectField('level', 'Educational level', LEVELS)}
+        ${selectField('level', PREFERENCE_LABELS.level, LEVELS)}
         <div class="field">
-          <label class="field-label" for="pref-audience">Audience</label>
+          <label class="field-label" for="pref-audience">${PREFERENCE_LABELS.audience}</label>
           <p class="field-help" id="pref-audience-help">Who the response is for, if not you. For example: my classmates, a tutor, a general audience.</p>
           <input id="pref-audience" class="text-field" type="text" data-pref="audience" value="${esc(state.preferences.audience || '')}"${invalid('audience')}${describedBy('pref-audience-help', errId('audience'))}>
           ${errorText('audience')}
         </div>
-        ${choiceGroup('depth', 'Response depth', DEPTHS, 'Optional preference. Select again to clear.')}
-        ${selectField('tone', 'Tone', TONES, 'Optional preference.')}
-        ${choiceGroup('format', 'Output format', FORMATS, 'Choosing a format addresses the Output format criterion. Select again to clear.')}
+        ${choiceGroup('depth', PREFERENCE_LABELS.depth, DEPTHS, 'Optional preference. Select again to clear.')}
+        ${selectField('tone', PREFERENCE_LABELS.tone, TONES, 'Optional preference.')}
+        ${choiceGroup('format', PREFERENCE_LABELS.format, FORMATS, 'Choosing a format addresses the Output format criterion. Select again to clear.')}
         ${otherFormat ? `<div class="field other-format-field">
           <label class="field-label" for="other-format">Describe the output format${reqMark}</label>
           <input id="other-format" class="text-field" type="text" data-pref="otherFormat" aria-required="true" placeholder="e.g. a two-column comparison" value="${esc(state.preferences.otherFormat || '')}"${invalid('otherFormat')}${describedBy(errId('otherFormat'))}>
@@ -590,15 +579,12 @@ function fieldSelector(key) {
 }
 
 function errorScreen(key) {
-  if (key === 'taskId' || key === 'taskDescription') return 0;
-  if (key === 'original') return 1;
-  if (key === 'otherFormat' || key in PREFERENCE_LABELS) return 3;
-  if ((state.analysis?.fields || []).some(field => field.key === key)) return 3;
-  return state.screen;
+  const stage = getValidationFieldMeta(key)?.stage;
+  return ({ task: 0, analysis: 1, generation: 3 })[stage] ?? state.screen;
 }
 
 function showErrors(fields) {
-  const rank = key => FIELD_ORDER.includes(key) ? FIELD_ORDER.indexOf(key) : FIELD_ORDER.indexOf('original') + 0.5;
+  const rank = key => getValidationFieldMeta(key)?.order ?? 3;
   const ordered = Object.keys(fields).sort((a, b) => rank(a) - rank(b));
   if (!ordered.length) return;
   state.errors = { ...fields };

@@ -63,12 +63,37 @@ test('presentation and other branches generate usable prompts without invented f
 test('optional preferences alter the draft but are not universal criteria', () => {
   const input = { taskId: 'study', original: 'Explain phishing.', preferences: { level: 'Undergraduate', depth: 'Moderate', tone: 'Academic', format: 'Bullet points' } };
   const output = generatePrompt(input);
-  assert.match(output, /Learning level: Undergraduate/);
+  assert.match(output, /Educational level: Undergraduate/);
   assert.match(output, /Response depth: Moderate/);
   assert.match(output, /Tone: Academic/);
   assert.match(output, /Output format: Bullet points/);
   assert.equal(statuses(input).format, 'Present');
   assert.equal(statuses(input).audience, 'Present');
+});
+
+test('missing-source suggestions name material relevant to the selected task', () => {
+  for (const [taskId, original, noun] of [
+    ['study', 'Explain these notes.', 'source material'],
+    ['summarisation', 'Summarise this article.', 'source material'],
+    ['coding', 'Debug this code.', 'relevant code'],
+    ['report', 'Review this draft.', 'draft or notes']
+  ]) {
+    const row = analysePrompt({ taskId, original }).find(row => row.key === 'source');
+    assert.equal(row.status, 'Missing');
+    assert.ok(row.suggestion.includes(noun));
+    assert.ok(!row.suggestion.includes('source, code, or draft'));
+  }
+});
+
+test('educational-level labels do not masquerade as missing source content', () => {
+  assert.equal(statuses({ taskId: 'summarisation', original: 'Summarise this article.\nSource material:\nEducational level: Undergraduate' }).source, 'Missing');
+});
+
+test('custom tasks retain student verification and missing-information guidance', () => {
+  const draft = generatePrompt({ taskId: 'other', original: 'Create interview questions.', details: { taskDescription: 'Prepare interviews for a research project' } });
+  assert.match(draft, /Support the academic task I described/);
+  assert.match(draft, /essential missing details/);
+  assert.match(draft, /claims or references I should verify/);
 });
 
 test('an unspecified Other format does not count as an output format', () => {

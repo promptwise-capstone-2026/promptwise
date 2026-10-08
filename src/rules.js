@@ -41,7 +41,7 @@ function sourceProvided(taskId, prompt, details) {
   // explicit labelled source section; unlabelled material needs user review.
   const section = clean(prompt).match(/(?:^|\n)[ \t]*(?:source(?: material| text)?|(?:relevant )?code|(?:my )?draft(?: or notes)?)[ \t]*:[ \t]*([\s\S]*)/i);
   if (!section) return false;
-  const otherLabel = '(?:context|focus|audience|learning level|intended audience|response depth|tone|output format|instructions?|requirements?|other requirements|target length|duration|speaker notes|goal|actual behaviour)';
+  const otherLabel = '(?:context|focus|audience|learning level|educational level|intended audience|response depth|tone|output format|instructions?|requirements?|other requirements|target length|duration|speaker notes|goal|actual behaviour)';
   const content = clean(section[1].split(new RegExp(`\\n[ \\t]*(?=${otherLabel}[ \\t]*:)`, 'i'))[0]);
   if (new RegExp(`^${otherLabel}[ \\t]*:`, 'i').test(content)) return false;
   return Boolean(content) && !sourcePlaceholder.test(content);
@@ -98,7 +98,7 @@ export function analysePrompt({ taskId, original, details = {}, preferences = {}
   }
 
   if (clean(preferences.level) || clean(preferences.audience) || has(prompt, audiencePattern)) {
-    results.push(result('audience', 'Present', 'An audience or learning level is visible.'));
+    results.push(result('audience', 'Present', 'An audience or educational level is visible.'));
   } else {
     results.push(result('audience', 'Missing', 'The intended audience or level is not specified.', 'Say who the response is for or what level of explanation you need.'));
   }
@@ -108,7 +108,8 @@ export function analysePrompt({ taskId, original, details = {}, preferences = {}
   } else if (sourceProvided(taskId, prompt, details)) {
     results.push(result('source', 'Present', 'Text is supplied in a source field or labelled source section. Check that it is relevant and complete.'));
   } else if (has(prompt, sourceReferencePattern)) {
-    results.push(result('source', 'Missing', 'The prompt refers to material, but its content has not been detected.', 'Add the source, code, or draft in a source field or a labelled source section.'));
+    const noun = taskId === 'coding' ? 'relevant code' : taskId === 'report' ? 'draft or notes' : 'source material';
+    results.push(result('source', 'Missing', 'The prompt refers to material, but its content has not been detected.', `Add the ${noun} in the matching field or a labelled source section.`));
   } else {
     const noun = taskId === 'coding' ? 'code or error details' : taskId === 'report' ? 'draft' : 'source material';
     results.push(result('source', 'Missing', `The ${noun} needed for this task is not supplied.`, `Add the ${noun} or ask the tool to request it first.`));
@@ -138,7 +139,7 @@ export function generatePrompt({ taskId, original, details = {}, preferences = {
   add(lines, 'Duration or slide count', details.duration);
   add(lines, 'Speaker notes', details.speakerNotes);
   add(lines, 'Other requirements', details.constraints);
-  add(lines, 'Learning level', preferences.level);
+  add(lines, 'Educational level', preferences.level);
   add(lines, 'Intended audience', preferences.audience);
   add(lines, 'Response depth', preferences.depth);
   add(lines, 'Tone', preferences.tone);
@@ -158,6 +159,8 @@ export function generatePrompt({ taskId, original, details = {}, preferences = {
     lines.push('Give me a structure I can substantiate and refine. Flag claims I should verify.');
   } else if (taskId === 'study') {
     lines.push('Help me understand the topic and check any factual claims I should verify.');
+  } else if (taskId === 'other') {
+    lines.push('Support the academic task I described. Ask about essential missing details and flag claims or references I should verify.');
   }
 
   if (!['summarisation', 'coding'].includes(taskId) && sourceNeeded(taskId, original, details) && !sourceProvided(taskId, original, details)) {

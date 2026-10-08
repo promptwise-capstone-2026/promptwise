@@ -75,6 +75,14 @@ export const LEVELS = ['First-year student', 'Undergraduate', 'Postgraduate'];
 export const TONES = ['Academic', 'Clear and accessible', 'Conversational', 'Professional', 'Technical'];
 export const DEPTHS = ['Concise', 'Moderate', 'Detailed'];
 
+export const PREFERENCE_LABELS = { level: 'Educational level', audience: 'Audience', depth: 'Response depth', tone: 'Tone', format: 'Output format' };
+
+export function getDetailLabel(key, taskId) {
+  const taskField = TASKS.find(task => task.id === taskId)?.fields.find(field => field.key === key);
+  const anyField = TASKS.flatMap(task => task.fields).find(field => field.key === key);
+  return taskField?.label || ({ source: 'Relevant source material', constraints: 'Other requirements or limits' })[key] || anyField?.label || key;
+}
+
 export function getTask(id) {
   return TASKS.find(task => task.id === id) || TASKS[0];
 }

@@ -1,5 +1,6 @@
 import { TASKS } from './tasks.js';
 import { analysePrompt } from './rules.js';
+import { MATERIAL_FIELDS } from './materials.js';
 
 const criterionForField = {
   context: 'context', purpose: 'context', focus: 'specificity',
@@ -8,6 +9,26 @@ const criterionForField = {
   preserve: 'constraints', topic: 'specificity', targetLength: 'constraints',
   duration: 'constraints', source: 'source', code: 'source',
   speakerNotes: 'format', constraints: 'constraints'
+};
+
+const fieldGuidance = {
+  context: 'Add the subject, course or situation that explains why you need this response.',
+  purpose: 'State the report question and what your report should achieve.',
+  focus: 'Name the aspects or questions the response should concentrate on.',
+  currentKnowledge: 'Share what you understand or find unclear if it would help tailor the explanation.',
+  language: 'Name the programming language, framework or environment involved.',
+  goal: 'Describe what the code should do when it works.',
+  actual: 'Describe what happens instead, including the exact error if available.',
+  criteria: 'Add the actual assessment requirements or sections the response must follow.',
+  draft: 'Supply your own draft or notes if you want feedback on that material.',
+  preserve: 'Identify arguments, wording or references you want to keep.',
+  topic: 'State the presentation topic and the message the audience should take away.',
+  targetLength: 'Give the requested summary length if you know it.',
+  duration: 'Give the presentation time or slide limit if one applies.',
+  source: 'Supply the relevant material this request depends on; a filename alone is insufficient.',
+  code: 'Supply the relevant code if the request depends on an existing implementation.',
+  speakerNotes: 'Describe the talking points or speaker notes you would find useful.',
+  constraints: 'Add real limits or requirements; leave this blank if none apply.'
 };
 
 /** Prioritise task questions without turning every missing criterion into a required field. */
@@ -26,10 +47,13 @@ export function getPersonalisationFields(input, criteria = analysePrompt(input))
   return fields.map(field => {
     const criterion = criterionForField[field.key];
     const row = byKey.get(criterion);
+    const priority = field.key !== 'currentKnowledge' && row && ['Missing', 'Partial'].includes(row.status) ? 'recommended' : 'optional';
     return {
       ...field, criterion, required: false,
-      priority: row && ['Missing', 'Partial'].includes(row.status) ? 'recommended' : 'optional',
-      guidance: row?.suggestion || row?.reason || ''
+      priority,
+      placeholder: priority === 'recommended' ? field.placeholder?.replace(/^Optional:\s*/i, '') : field.placeholder,
+      guidance: fieldGuidance[field.key] || row?.suggestion || row?.reason || '',
+      ...(field.multiline && MATERIAL_FIELDS[field.key] ? { material: MATERIAL_FIELDS[field.key] } : {})
     };
   });
 }
