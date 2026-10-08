@@ -22,18 +22,29 @@ const contextPattern = /\b(for my|in my|for a|in a|course|unit|assignment|assess
 const constraintPattern = /\b(only|avoid|without|under|at most|at least|maximum|minimum|limit|words?|minutes?|slides?|must|do not|don't|using only|australian english)\b/i;
 const specificityPattern = /\b(focus on|include|cover|especially|with examples?|such as|for example|key message|expected|actual|error|warning signs|main arguments)\b/i;
 const sourceReferencePattern = /\b(this (text|article|source|code|draft)|attached|below|provided (text|material|code)|these notes)\b/i;
+const sourcePlaceholder = /^(?:\[(?:paste|insert|add|attach|provide)[^\]]*\]|(?:to be supplied|not supplied|not provided|none|n\/a|attached|below|see attachment)[.!]?)$/i;
 
 function sourceNeeded(taskId, prompt, details) {
+  if (anyValue(details, ['source', 'code', 'draft']) || sourceProvided(taskId, prompt, details)) return true;
   if (taskId === 'summarisation') return true;
   if (taskId === 'coding') return has(prompt, /\b(debug|fix|error|bug|this code|my code|function|script)\b/i) || anyValue(details, ['actual', 'code']);
   if (taskId === 'report') return has(prompt, /\b(review|feedback|edit|revise|critique|improve my|my draft)\b/i) || anyValue(details, ['draft']);
-  if (taskId === 'presentation' || taskId === 'other') return has(prompt, /\b(summari[sz]e|review|based on|using these|from this)\b/i);
-  return false;
+  const taskRequest = `${clean(prompt)} ${taskId === 'other' ? clean(details.taskDescription) : ''}`;
+  if (['presentation', 'other'].includes(taskId) && has(taskRequest, /\b(review|critique|edit|revise)\b/i)) return true;
+  return has(taskRequest, sourceReferencePattern) || has(taskRequest, /\b(summari[sz]e|review this|based on|using these|from this|lecture notes|my notes)\b/i);
 }
 
 function sourceProvided(taskId, prompt, details) {
-  if (anyValue(details, taskId === 'coding' ? ['code'] : taskId === 'report' ? ['draft', 'source'] : ['source'])) return true;
-  return clean(prompt).includes('\n') && words(prompt).length > 35;
+  const keys = taskId === 'coding' ? ['code', 'source'] : taskId === 'report' ? ['draft', 'source'] : ['source'];
+  if (keys.some(key => clean(details[key]) && !sourcePlaceholder.test(clean(details[key])))) return true;
+  // Length and line breaks do not prove that material was supplied. Accept an
+  // explicit labelled source section; unlabelled material needs user review.
+  const section = clean(prompt).match(/(?:^|\n)[ \t]*(?:source(?: material| text)?|(?:relevant )?code|(?:my )?draft(?: or notes)?)[ \t]*:[ \t]*([\s\S]*)/i);
+  if (!section) return false;
+  const otherLabel = '(?:context|focus|audience|learning level|intended audience|response depth|tone|output format|instructions?|requirements?|other requirements|target length|duration|speaker notes|goal|actual behaviour)';
+  const content = clean(section[1].split(new RegExp(`\\n[ \\t]*(?=${otherLabel}[ \\t]*:)`, 'i'))[0]);
+  if (new RegExp(`^${otherLabel}[ \\t]*:`, 'i').test(content)) return false;
+  return Boolean(content) && !sourcePlaceholder.test(content);
 }
 
 function result(key, status, reason, suggestion = '') {
@@ -63,7 +74,7 @@ export function analysePrompt({ taskId, original, details = {}, preferences = {}
     results.push(result('context', 'Missing', 'There is not enough background to place the request.', 'Add a topic, purpose, or course context.'));
   }
 
-  if (anyValue(details, ['focus', 'goal', 'actual', 'criteria', 'topic', 'taskDescription']) || has(prompt, specificityPattern) || count >= 18) {
+  if (anyValue(details, ['focus', 'goal', 'actual', 'criteria', 'topic', 'taskDescription']) || has(prompt, specificityPattern)) {
     results.push(result('specificity', 'Present', 'You included a focus, expected outcome, or task detail.'));
   } else if (count >= 3 || has(prompt, taskVerb)) {
     results.push(result('specificity', 'Partial', 'The request could use a more precise focus.', 'Name the aspect, outcome, example, or question that matters most.'));
@@ -95,9 +106,9 @@ export function analysePrompt({ taskId, original, details = {}, preferences = {}
   if (!sourceNeeded(taskId, prompt, details)) {
     results.push(result('source', 'N/A', 'This request does not clearly depend on supplied material.'));
   } else if (sourceProvided(taskId, prompt, details)) {
-    results.push(result('source', 'Present', 'Relevant input material is supplied.'));
+    results.push(result('source', 'Present', 'Text is supplied in a source field or labelled source section. Check that it is relevant and complete.'));
   } else if (has(prompt, sourceReferencePattern)) {
-    results.push(result('source', 'Partial', 'The prompt refers to material but it is not included.', 'Paste the source, code, or draft before using the improved prompt.'));
+    results.push(result('source', 'Missing', 'The prompt refers to material, but its content has not been detected.', 'Add the source, code, or draft in a source field or a labelled source section.'));
   } else {
     const noun = taskId === 'coding' ? 'code or error details' : taskId === 'report' ? 'draft' : 'source material';
     results.push(result('source', 'Missing', `The ${noun} needed for this task is not supplied.`, `Add the ${noun} or ask the tool to request it first.`));
@@ -138,7 +149,7 @@ export function generatePrompt({ taskId, original, details = {}, preferences = {
   if (clean(details.draft)) add(lines, 'My draft or notes', details.draft);
 
   if (taskId === 'summarisation') {
-    lines.push(clean(details.source) ? 'Use the supplied source. Distinguish its claims from any outside knowledge.' : 'Ask me to provide the source material before summarising. Do not invent a source.');
+    lines.push(sourceProvided(taskId, original, details) ? 'Use the supplied source. Distinguish its claims from any outside knowledge.' : 'Ask me to provide the source material before summarising. Do not invent a source.');
   } else if (taskId === 'coding') {
     lines.push('Explain the reasoning behind any suggested code changes. If essential code or error details are missing, ask for them first.');
   } else if (taskId === 'report') {
@@ -147,6 +158,10 @@ export function generatePrompt({ taskId, original, details = {}, preferences = {
     lines.push('Give me a structure I can substantiate and refine. Flag claims I should verify.');
   } else if (taskId === 'study') {
     lines.push('Help me understand the topic and check any factual claims I should verify.');
+  }
+
+  if (!['summarisation', 'coding'].includes(taskId) && sourceNeeded(taskId, original, details) && !sourceProvided(taskId, original, details)) {
+    lines.push('Ask me to provide the source material this request depends on before proceeding. Do not invent missing material.');
   }
 
   const output = lines.filter(Boolean).join('\n\n');

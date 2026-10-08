@@ -15,6 +15,7 @@
 - White background, black headings, grey choice cards and buttons, red/green analysis accents, and a single-column mobile layout.
 - The Study Support example uses “Explain phishing.” as the original prompt. The final Figma text is static, but the report requires the improved prompt to be editable.
 - The example analysis lists Tone as missing. This conflicts with the report's framework; the implementation keeps Tone optional.
+- A user-provided audit update reports 11 mobile frames in the decoded `.fig`, with only six PNG exports. It identifies additional empty-input and personalisation states, and a System Architecture canvas naming Microsoft Copilot. These are attributed audit findings; this notes update does not independently verify the decoded frame inventory. Frontend work should inspect the full export or available audit output.
 
 ## Version 1 design choices to review with the team
 
@@ -24,3 +25,15 @@
 - Missing source material is represented by a visible placeholder or a request to clarify; the engine does not invent it.
 - The report contains both Copilot-only notes and an evaluation procedure involving selected GenAI tools. The app produces a copyable prompt without choosing the evaluation tool. The team still needs to decide the evaluation protocol.
 - The report's performance target is blank; no numeric speed target is assumed.
+
+## Iteration started on 8 October 2026
+
+- The user requested a clearer responsive interface, a meaningful Others description on Home, expandable analysis cards, task-relevant personalisation, attachment intake, required-field stars and actual AI evaluation/rewriting.
+- The user assigned frontend work to Claude and shared logic/backend/integration to Codex. Use `docs/FRONTEND_HANDOFF.md` for the current frontend milestone and shared JavaScript interfaces. Take turns editing the local checkout.
+- OpenAI evaluation and rewriting remain proposed. The report lists direct submission to Copilot or other model APIs as out of scope. Noah interprets this as excluding automatic downstream submission rather than an internal coaching API; the supervisor's confirmation is pending. No API requests, API dependencies or billing configuration are added in this milestone.
+- The baseline implementation remains available at commit `cb364f8`. The current local rules no longer infer specificity from length alone or supplied source material from long multiline text. Referencing absent material is Missing, consistent with the report's definition; source presence still does not prove completeness or relevance.
+- `validation.js` adds task-aware form checks, including Others and conditional Other-format description. Obvious placeholders can be rejected; arbitrary semantic suitability cannot be established by these local checks. The 240-character task-description limit is a prototype choice.
+- `guidance.js` prioritises relevant personalisation fields without forcing all criteria to be answered, and avoids repeating Others. Audience choices are separated from the educational-level dropdown.
+- `workflow.js` exposes a local adapter returning an explicit `local-rules` mode. It creates an assembled draft, not a simulated AI rewrite. Frontend wiring of this adapter is the next Claude milestone.
+- `materials.js` reads user-selected UTF-8 `.txt` and `.md` content in memory, within a prototype 1 MB limit. File-picker wiring is the next frontend milestone; PDF, Word and image processing are not implemented here.
+- All previously supplied assignment descriptions, rubrics and teaching examples are the current assessment evidence. The detailed final-report marking table was not included in the supplied text; no additional unseen rubric is assumed. API use does not establish a predicted mark.

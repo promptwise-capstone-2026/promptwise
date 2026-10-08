@@ -71,7 +71,7 @@ export const TASKS = [
 ];
 
 export const FORMATS = ['Paragraph', 'Bullet points', 'Table', 'Outline', 'Step-by-step', 'Study cards', 'Code with explanation', 'Other'];
-export const LEVELS = ['Undergraduate', 'Postgraduate', 'First-year student', 'Classmates', 'Tutor or educator', 'General audience'];
+export const LEVELS = ['First-year student', 'Undergraduate', 'Postgraduate'];
 export const TONES = ['Academic', 'Clear and accessible', 'Conversational', 'Professional', 'Technical'];
 export const DEPTHS = ['Concise', 'Moderate', 'Detailed'];
 

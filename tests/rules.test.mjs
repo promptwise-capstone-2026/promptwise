@@ -25,7 +25,7 @@ test('study example follows task-aware report statuses, with tone and depth abse
 
 test('summarisation needs supplied source and uses it when given', () => {
   const input = { taskId: 'summarisation', original: 'Summarise this article.' };
-  assert.equal(statuses(input).source, 'Partial');
+  assert.equal(statuses(input).source, 'Missing');
   assert.equal(statuses({ ...input, details: { source: 'The article argues that...' } }).source, 'Present');
   const output = generatePrompt(input);
   assert.match(output, /ask me to provide the source material/i);
@@ -75,4 +75,39 @@ test('an unspecified Other format does not count as an output format', () => {
   const base = { taskId: 'study', original: 'Explain phishing.' };
   assert.equal(statuses({ ...base, preferences: { format: 'Other' } }).format, 'Missing');
   assert.equal(statuses({ ...base, preferences: { format: 'Other', otherFormat: 'Two-column comparison' } }).format, 'Present');
+});
+
+test('length alone cannot make a vague request specific', () => {
+  const original = 'Explain some things to me about a topic that I have been thinking about for quite a while and would like to know more about.';
+  assert.equal(statuses({ taskId: 'study', original }).specificity, 'Partial');
+});
+
+test('long multiline instructions are not mistaken for supplied source material', () => {
+  const original = 'Summarise this article for me.\nI would like a clear summary that helps me understand what the author is trying to say and gives me a way to remember the discussion later when I prepare for class.';
+  assert.equal(statuses({ taskId: 'summarisation', original }).source, 'Missing');
+});
+
+test('an explicit inline source can be used without inventing a missing-source warning', () => {
+  const input = { taskId: 'summarisation', original: 'Summarise the following.\nSource text: Campus trees provide shade and habitat. Students surveyed requested additional trees.' };
+  assert.equal(statuses(input).source, 'Present');
+  assert.match(generatePrompt(input), /Use the supplied source/);
+  assert.doesNotMatch(generatePrompt(input), /Ask me to provide the source material/);
+  const placeholder = { ...input, original: 'Summarise this article.\nSource text: [paste article here]' };
+  assert.equal(statuses(placeholder).source, 'Missing');
+  assert.equal(statuses({ ...input, original: 'Summarise this article.\nSource text:\nOutput format: Bullet points' }).source, 'Missing');
+  assert.equal(statuses({ ...input, details: { source: '[paste article here]' }, original: 'Summarise this article.' }).source, 'Missing');
+  assert.equal(statuses({ taskId: 'coding', original: 'Explain this code.\nCode: [1, 2, 3]' }).source, 'Present');
+});
+
+test('study requests depending on notes activate the source criterion', () => {
+  const input = { taskId: 'study', original: 'Explain the ideas in these notes.' };
+  assert.equal(statuses(input).source, 'Missing');
+  assert.match(generatePrompt(input), /Ask me to provide the source material/);
+  assert.equal(statuses({ ...input, details: { source: 'The lecture distinguishes symmetric and asymmetric encryption.' } }).source, 'Present');
+});
+
+test('custom tasks carry source requirements from the Home description', () => {
+  const input = { taskId: 'other', original: 'Help me with this task.', details: { taskDescription: 'Summarise lecture notes for revision' } };
+  assert.equal(statuses(input).source, 'Missing');
+  assert.match(generatePrompt(input), /Ask me to provide the source material/);
 });
