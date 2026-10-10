@@ -29,7 +29,9 @@ test('personalisation offers distinct actionable guidance and correct file metad
       if (['context', 'focus', 'goal', 'constraints'].includes(field.key)) assert.equal(field.inputKind, 'sentence');
     }
     for (const field of fields.filter(field => ['source', 'code', 'draft', 'criteria'].includes(field.key))) {
-      assert.equal(field.material.accept, '.txt,.md,text/plain,text/markdown');
+      assert.ok(field.material.accept.includes('.txt') && field.material.accept.includes('.md'));
+      assert.equal(field.material.accept.includes('.pdf'), field.key !== 'code');
+      assert.ok(field.material.buttonLabel && field.material.supportNote);
       assert.ok(field.material.purpose);
       assert.equal(getValidationFieldMeta(field.key).stage, 'generation');
     }
@@ -104,7 +106,30 @@ test('personalisation avoids repeating Others and provides source intake for sou
   assert.ok(source);
   assert.equal(source.priority, 'recommended');
   assert.equal(source.required, false);
-  assert.ok(!analyseWorkflow({ taskId: 'study', original: 'Explain phishing.' }).fields.some(field => field.key === 'source'));
+  const general = analyseWorkflow({ taskId: 'study', original: 'Explain phishing.' });
+  const optionalSource = general.fields.find(field => field.key === 'source');
+  assert.equal(optionalSource.alwaysVisible, true);
+  assert.equal(optionalSource.priority, 'optional');
+  assert.equal(optionalSource.required, false);
+  assert.equal(general.criteria.find(row => row.key === 'source').status, 'N/A');
+});
+
+test('every task offers material intake without keyword gating or duplicate fields', () => {
+  for (const task of TASKS) {
+    const input = { taskId: task.id, original: 'Help me understand a concept.', details: task.id === 'other' ? { taskDescription: 'Prepare research interview questions' } : {} };
+    const { fields } = analyseWorkflow(input);
+    assert.equal(new Set(fields.map(field => field.key)).size, fields.length, task.id);
+    const source = fields.find(field => field.key === 'source');
+    assert.ok(source?.alwaysVisible && source.material.accept.includes('.pptx'), task.id);
+    assert.ok(source.material.accept.includes('.docx'));
+    assert.ok(fields.every(field => field.required === false));
+  }
+  const study = analyseWorkflow({ taskId: 'study', original: 'Explain phishing.' });
+  assert.equal(study.fields.find(field => field.key === 'examples').priority, 'optional');
+  const coding = analyseWorkflow({ taskId: 'coding', original: 'Explain recursion.' });
+  assert.equal(coding.fields.find(field => field.key === 'actual').priority, 'optional');
+  const debug = analyseWorkflow({ taskId: 'coding', original: 'Debug my function.' });
+  assert.equal(debug.fields.find(field => field.key === 'actual').priority, 'recommended');
 });
 
 test('missing material remains visible while a request-for-source draft is still possible', () => {

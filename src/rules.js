@@ -21,7 +21,7 @@ const audiencePattern = /\b(first.year|undergraduate|postgraduate|student|classm
 const contextPattern = /\b(for my|in my|for a|in a|course|unit|assignment|assessment|tutorial|lecture|project|majoring|studying|preparing for)\b/i;
 const constraintPattern = /\b(only|avoid|without|under|at most|at least|maximum|minimum|limit|words?|minutes?|slides?|must|do not|don't|using only|australian english)\b/i;
 const specificityPattern = /\b(focus on|include|cover|especially|with examples?|such as|for example|key message|expected|actual|error|warning signs|main arguments)\b/i;
-const sourceReferencePattern = /\b(this (text|article|source|code|draft)|attached|below|provided (text|material|code)|these notes)\b/i;
+const sourceReferencePattern = /\b(this (text|article|source|code|draft|slide|diagram|document|case study|assignment guide|rubric)|attached|below|provided (text|material|code)|these (notes|slides)|lecture slides|(?:on|from|in) (?:slide|page)\s+\d+)\b/i;
 const sourcePlaceholder = /^(?:\[(?:paste|insert|add|attach|provide)[^\]]*\]|(?:to be supplied|not supplied|not provided|none|n\/a|attached|below|see attachment)[.!]?)$/i;
 
 function sourceNeeded(taskId, prompt, details) {
@@ -82,10 +82,10 @@ export function analysePrompt({ taskId, original, details = {}, preferences = {}
     results.push(result('specificity', 'Missing', 'No task-specific detail is visible.', 'Add the key topic or expected outcome.'));
   }
 
-  const constraintsActive = ['summarisation', 'report', 'presentation'].includes(taskId) || anyValue(details, ['constraints', 'targetLength', 'duration']) || has(prompt, constraintPattern);
+  const constraintsActive = ['summarisation', 'report', 'presentation'].includes(taskId) || anyValue(details, ['constraints', 'criteria', 'targetLength', 'duration']) || has(prompt, constraintPattern);
   if (!constraintsActive) {
     results.push(result('constraints', 'N/A', 'A limit is not necessary for this request. Add one only if it matters.'));
-  } else if (anyValue(details, ['constraints', 'targetLength', 'duration']) || has(prompt, constraintPattern)) {
+  } else if (anyValue(details, ['constraints', 'criteria', 'targetLength', 'duration']) || has(prompt, constraintPattern)) {
     results.push(result('constraints', 'Present', 'A relevant boundary or length is visible.'));
   } else {
     results.push(result('constraints', 'Missing', 'A useful boundary has not been supplied.', 'Add a word limit, duration, required sections, or other real requirement if known.'));
@@ -128,6 +128,7 @@ export function generatePrompt({ taskId, original, details = {}, preferences = {
   add(lines, 'Context', details.context);
   add(lines, 'Focus', details.focus);
   add(lines, 'Current knowledge', details.currentKnowledge);
+  add(lines, 'Examples or practice requested', details.examples);
   add(lines, 'Goal or expected behaviour', details.goal);
   add(lines, 'Actual behaviour or error', details.actual);
   add(lines, 'Language or framework', details.language);

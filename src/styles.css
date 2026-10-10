@@ -506,3 +506,7 @@ select.text-field { appearance: none; padding-right: 40px; background-image: lin
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; animation: none !important; }
 }
+
+/* Local document extraction preview */
+.material-preview { min-height: 180px; max-height: 360px; resize: vertical; overflow-y: auto; font-size: .92rem; }
+.file-warnings { padding-left: 20px; margin: 8px 0; color: var(--ink-2); font-size: .86rem; display: grid; gap: 5px; }

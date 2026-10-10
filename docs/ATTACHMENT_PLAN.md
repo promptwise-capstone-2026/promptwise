@@ -1,5 +1,11 @@
 # PromptWise attachment support plan
 
+**Implementation update — 10 October 2026:** PDF/DOCX/PPTX text extraction is
+now implemented locally alongside TXT/MD, with editable previews and visible
+material input for all six tasks. See [the current implementation and limits](PERSONALISATION_MATERIALS_REVIEW.md).
+The original proposal below records the design rationale; its Next-stage labels
+are historical. Image/vision, media and AI-provider handling remain future work.
+
 Proposed on 10 October 2026 in response to the user's request. This is a scoped
 design plan, not a claim of implemented support or a new report requirement.
 Codex owns this backend work; the frontend refinement preserves current TXT/MD.

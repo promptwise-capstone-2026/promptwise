@@ -1,7 +1,7 @@
 import { TASKS, FORMATS, LEVELS, TONES, DEPTHS, PREFERENCE_LABELS, getDetailLabel } from './tasks.js';
 import { validateInput, CUSTOM_TASK_MAX_LENGTH, getValidationFieldMeta } from './validation.js';
 import { analyseWorkflow, improveWorkflow, WorkflowValidationError, WORKFLOW_MODES as MODE_LABELS, analysisFingerprint as analysisKeyOf } from './workflow.js';
-import { readTextMaterial } from './materials.js';
+import { readMaterial, MATERIAL_MAX_CHARS } from './materials.js';
 
 const app = document.querySelector('#app');
 const announcer = document.querySelector('#announcer');
@@ -55,6 +55,8 @@ let epoch = 0;
 let analysisSeq = 0;
 let generateSeq = 0;
 let readSeq = 0;
+const materialReads = new Map();
+const stopMaterialReads = () => { for (const controller of materialReads.values()) controller.abort(); materialReads.clear(); };
 
 const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
 const clean = value => typeof value === 'string' ? value.trim() : '';
@@ -354,21 +356,24 @@ function fileControl(field) {
       <div class="file-actions"><button type="button" class="ghost-button small" data-file-action="stop" data-field="${key}" data-fk="file-stop-${key}">Cancel reading${forField}</button></div></div>`;
   } else if (file?.status === 'pending') {
     status = `<div class="file-choice"><p class="file-line"><span><strong>${esc(file.name)}</strong> (${formatSize(file.size)}) is ready.${clean(state.details[key]) ? ' This field already has text.' : ''}</span></p>
+      ${file.reviewRequired ? `<label class="field-label" for="preview-${key}">Review extracted text — keep the relevant passages</label><textarea class="text-field material-preview" id="preview-${key}" data-material-preview="${key}" spellcheck="false" aria-describedby="detail-${key}-file-note">${esc(file.text)}</textarea>` : ''}
       <div class="file-actions">
-        <button type="button" class="secondary-button small" data-file-action="replace" data-field="${key}" data-fk="file-replace-${key}">Replace current text${forField}</button>
-        <button type="button" class="secondary-button small" data-file-action="append" data-field="${key}" data-fk="file-append-${key}">Add below current text${forField}</button>
+        <button type="button" class="secondary-button small" data-file-action="replace" data-field="${key}" data-fk="file-replace-${key}">${clean(state.details[key]) ? 'Replace current text' : 'Use this text'}${forField}</button>
+        ${clean(state.details[key]) ? `<button type="button" class="secondary-button small" data-file-action="append" data-field="${key}" data-fk="file-append-${key}">Add below current text${forField}</button>` : ''}
         <button type="button" class="ghost-button small" data-file-action="cancel" data-field="${key}" data-fk="file-cancel-${key}">Cancel${forField}</button>
       </div></div>`;
   } else if (file?.status === 'ready') {
     status = `<div class="file-ready"><p class="file-line file-ok"><span>Text from <strong>${esc(file.name)}</strong> (${formatSize(file.size)}) is in this field.</span></p>
       <div class="file-actions"><button type="button" class="ghost-button small" data-file-action="remove" data-field="${key}" data-fk="file-remove-${key}">Remove file text${forField}</button>${file.edited ? `<button type="button" class="ghost-button small" data-file-action="clear" data-field="${key}" data-fk="file-clear-${key}">Clear field${forField}</button>` : ''}</div></div>`;
   }
+  const warnings = file?.warnings || [];
   const problem = file?.notice || file?.error;
   const error = problem ? `<div class="file-error" id="${id}-file-error"><p>${esc(problem)}</p>${file.error && !['reading', 'pending'].includes(file.status) ? `<button type="button" class="ghost-button small" data-file-action="dismiss" data-field="${key}" data-fk="file-dismiss-${key}">Dismiss${forField}</button>` : ''}</div>` : '';
   return `<div class="file-control">
     <input type="file" class="file-input" id="${id}-file" data-file-input="${key}" accept="${esc(field.material.accept)}" tabindex="-1" aria-hidden="true">
-    <button type="button" class="file-button" data-file-pick="${key}" data-fk="file-pick-${key}"${describedBy(`${id}-file-note`, problem ? `${id}-file-error` : '')}><span class="file-icon" aria-hidden="true"></span>Add text from a .txt or .md file<span class="sr-only"> for ${esc(field.label)}</span></button>
-    <p class="file-note" id="${id}-file-note">${esc(field.material.purpose)} Plain text or Markdown up to ${esc(field.material.limitLabel)}, read in this browser only. PDF, Word and image files are not supported yet.</p>
+    <button type="button" class="file-button" data-file-pick="${key}" data-fk="file-pick-${key}"${describedBy(`${id}-file-note`, problem ? `${id}-file-error` : '')}><span class="file-icon" aria-hidden="true"></span>${esc(field.material.buttonLabel)}<span class="sr-only"> for ${esc(field.label)}</span></button>
+    <p class="file-note" id="${id}-file-note">${esc(field.material.purpose)} ${esc(field.material.supportNote)} Add further files one at a time and choose Add below current text.</p>
+    ${warnings.length ? `<details class="mode-details"><summary data-fk="file-notes-${key}">Extraction limits and copying files<span class="sr-only"> for ${esc(field.label)}</span></summary><ul class="file-warnings">${warnings.map(item => `<li>${esc(item)}</li>`).join('')}</ul></details>` : ''}
     <div class="file-status">${status}${error}</div>
   </div>`;
 }
@@ -429,8 +434,8 @@ function choiceGroup(key, label, options, help) {
 
 function fieldGroup(id, title, help, fields) {
   if (!fields.length) return '';
-  const recommended = fields.filter(field => field.priority === 'recommended');
-  const optional = fields.filter(field => field.priority !== 'recommended');
+  const recommended = fields.filter(field => field.priority === 'recommended' || field.alwaysVisible);
+  const optional = fields.filter(field => field.priority !== 'recommended' && !field.alwaysVisible);
   const open = state.groupOpen[id] ?? (!recommended.length || optional.some(field => clean(state.details[field.key]) || state.files[field.key]));
   return `<section class="surface form-group" aria-labelledby="${id}-heading">
     <h2 id="${id}-heading">${title}</h2>
@@ -487,7 +492,7 @@ function personalisationScreen() {
     <div class="personalise-layout">
       <div class="detail-column">
         ${fieldGroup('task-details', 'Task details', 'Recommended items relate to criteria flagged in the analysis.', fields.filter(field => !field.material))}
-        ${fieldGroup('materials', 'Materials and requirements', 'Paste text or add a .txt or .md file. If you do not have the material yet, leave it blank; the prompt can ask for it.', fields.filter(field => field.material))}
+        ${fieldGroup('materials', 'Materials and requirements', 'Paste text or add PDF, DOCX, PPTX, TXT or MD files. Keep the relevant passages, and name the page, slide or section in your question. Materials are optional when your request does not depend on them.', fields.filter(field => field.material))}
       </div>
       ${preferencesGroup(otherFormat)}
     </div>
@@ -869,6 +874,7 @@ function hasTaskDetails() {
 }
 
 function applyTask(id) {
+  stopMaterialReads();
   epoch += 1;
   // Requests from the previous task are now stale; their results are ignored, so clear their busy flags too.
   state.analysing = false;
@@ -1020,7 +1026,12 @@ async function generate({ replace = false } = {}) {
   if (seq !== generateSeq || startEpoch !== epoch) return;
   state.generating = false;
   if (draft) {
-    state.draft = { ...draft, key: JSON.stringify(input), input, analysisKey: state.analysisKey };
+    const materialWarnings = Object.keys(input.details).flatMap(key => {
+      const warnings = [];
+      for (let file = state.files[key]; file; file = file.previous) warnings.push(...(file.warnings || []));
+      return warnings;
+    });
+    state.draft = { ...draft, warnings: [...new Set([...(draft.warnings || []), ...materialWarnings])], key: JSON.stringify(input), input, analysisKey: state.analysisKey };
     state.improved = draft.improvedPrompt;
     state.copiedValue = null;
     state.copy = { text: '', kind: '' };
@@ -1088,6 +1099,7 @@ function restart(force = false) {
     app.querySelector('[data-fk="confirm-restart"]')?.focus();
     return;
   }
+  stopMaterialReads();
   epoch += 1;
   analysisSeq += 1;
   generateSeq += 1;
@@ -1105,6 +1117,9 @@ const readyRecord = file => file?.status === 'ready' ? { ...file, error: '', not
 
 async function readFileInto(key, file) {
   if (!file) return;
+  materialReads.get(key)?.abort();
+  const controller = new AbortController();
+  materialReads.set(key, controller);
   const token = ++readSeq;
   const startEpoch = epoch;
   const previous = readyRecord(state.files[key]);
@@ -1113,15 +1128,15 @@ async function readFileInto(key, file) {
   announce(`Reading ${file.name}`);
   let message = '';
   try {
-    const material = await readTextMaterial(file);
+    const material = await readMaterial(file, { field: key, signal: controller.signal });
     if (startEpoch !== epoch || state.files[key]?.token !== token) return;
     const current = state.details[key] || '';
-    if (current.trim()) {
-      state.files[key] = { status: 'pending', name: material.name, size: material.size, text: material.text, token, previous };
-      message = `${material.name} is ready. Choose whether to replace or add to the current text.`;
+    if (current.trim() || material.reviewRequired) {
+      state.files[key] = { ...material, status: 'pending', token, previous };
+      message = current.trim() ? `${material.name} is ready. Choose whether to replace or add to the current text.` : `${material.name} is ready. Review the extract and select Use this text.`;
     } else {
       state.details[key] = material.text;
-      state.files[key] = { status: 'ready', name: material.name, size: material.size, inserted: material.text, token };
+      state.files[key] = { ...material, text: undefined, status: 'ready', inserted: material.text, token };
       clearFieldError(key);
       message = `Added text from ${material.name}.`;
     }
@@ -1129,6 +1144,8 @@ async function readFileInto(key, file) {
     if (startEpoch !== epoch || state.files[key]?.token !== token) return;
     message = `${file.name}: ${error?.message || 'This file could not be read. Try another file or paste the relevant extract.'}`;
     state.files[key] = previous ? { ...previous, error: message } : { status: 'error', name: file.name, error: message, token };
+  } finally {
+    if (materialReads.get(key) === controller) materialReads.delete(key);
   }
   // A late read updates state quietly when the user has moved to another screen; its status shows on return.
   if (state.page !== 'workflow' || state.screen !== 3) return;
@@ -1154,15 +1171,24 @@ function fileAction(action, key) {
   const current = state.details[key] || '';
   if (action === 'replace' || action === 'append') {
     if (file.status !== 'pending') return;
+    if (!clean(file.text) || file.text.length > MATERIAL_MAX_CHARS) {
+      state.files[key] = { ...file, error: 'Keep a non-empty extract of at most 120,000 characters.' };
+      render();
+      app.querySelector(`#preview-${key}`)?.focus();
+      return;
+    }
+    const inserted = file.reviewRequired ? `[File: ${file.name} — extracted text]\n${file.text}` : file.text;
     const base = current.replace(/\s+$/, '');
-    const joined = action === 'append' && base ? `${base}\n\n${file.text}` : file.text;
+    const joined = action === 'append' && base ? `${base}\n\n${inserted}` : inserted;
     state.details[key] = joined;
     // Appending keeps the earlier file's record so removing this one restores it.
     const keep = action === 'append' && file.previous && joined.includes(insertedText(file.previous)) ? file.previous : null;
-    state.files[key] = { status: 'ready', name: file.name, size: file.size, inserted: file.text, token: file.token, previous: keep };
+    state.files[key] = { ...file, text: undefined, status: 'ready', inserted, previous: keep, error: '' };
     clearFieldError(key);
     announce(action === 'append' ? `Added text from ${file.name} below the current text.` : `Replaced the field with text from ${file.name}.`);
   } else if (action === 'cancel' || action === 'stop') {
+    materialReads.get(key)?.abort();
+    materialReads.delete(key);
     readSeq += 1;
     if (file.previous && liveFile(key, file.previous)) state.files[key] = file.previous;
     else delete state.files[key];
@@ -1289,6 +1315,14 @@ app.addEventListener('input', event => {
     state.original = target.value;
     clearFieldError('original');
     refreshStepper();
+  } else if (target.matches('[data-material-preview]')) {
+    const file = state.files[target.dataset.materialPreview];
+    if (file?.status === 'pending') {
+      file.text = target.value;
+      file.error = '';
+      document.getElementById(`detail-${target.dataset.materialPreview}-file-error`)?.remove();
+      app.querySelector(`[data-file-pick="${CSS.escape(target.dataset.materialPreview)}"]`)?.setAttribute('aria-describedby', `detail-${target.dataset.materialPreview}-file-note`);
+    }
   } else if (target.matches('[data-detail]')) {
     const key = target.dataset.detail;
     state.details[key] = target.value;

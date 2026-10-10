@@ -1,5 +1,5 @@
 // Bump CACHE whenever the asset list or the shipped bundle changes.
-const CACHE = 'promptwise-v5';
+const CACHE = 'promptwise-v6';
 const ASSETS = [
   '/',
   '/index.html',
@@ -10,15 +10,31 @@ const ASSETS = [
   '/src/validation.js',
   '/src/workflow.js',
   '/src/materials.js',
+  '/src/document-materials.js',
   '/src/styles.css',
   '/public/icon.svg',
-  '/public/manifest.webmanifest'
+  '/public/manifest.webmanifest',
+  '/public/vendor/manifest.json'
 ];
 // Only the app shell is cached. Private files, API responses and anything else go to the network untouched.
 const CACHEABLE = new Set(ASSETS);
+const addVendorAssets = paths => {
+  if (!Array.isArray(paths) || paths.some(path => !/^\/public\/vendor\/[\w./-]+$/.test(path) || path.includes('..'))) throw new Error('Invalid parser asset manifest');
+  paths.forEach(path => CACHEABLE.add(path));
+  return paths;
+};
+// Restore the exact generated allowlist when the browser restarts the worker.
+const vendorReady = caches.open(CACHE).then(cache => cache.match('/public/vendor/manifest.json'))
+  .then(response => response ? response.json().then(addVendorAssets) : []).catch(() => []);
 
 self.addEventListener('install', event => {
-  event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(ASSETS.map(url => new Request(url, { cache: 'reload' })))));
+  event.waitUntil((async () => {
+    const response = await fetch('/public/vendor/manifest.json', { cache: 'reload' });
+    if (!response.ok) throw new Error('Parser assets unavailable');
+    const vendor = addVendorAssets(await response.json());
+    const cache = await caches.open(CACHE);
+    await cache.addAll([...ASSETS, ...vendor].map(url => new Request(url, { cache: 'reload' })));
+  })());
   self.skipWaiting();
 });
 
@@ -30,10 +46,12 @@ self.addEventListener('activate', event => {
 
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
-  if (event.request.method !== 'GET' || url.origin !== self.location.origin || !CACHEABLE.has(url.pathname)) return;
+  if (event.request.method !== 'GET' || url.origin !== self.location.origin || (!CACHEABLE.has(url.pathname) && !url.pathname.startsWith('/public/vendor/'))) return;
   // Network first so a refresh always shows the current version; the cache is the offline fallback.
   event.respondWith((async () => {
     try {
+      await vendorReady;
+      if (!CACHEABLE.has(url.pathname)) return fetch(event.request);
       const response = await fetch(event.request);
       if (response.ok) {
         const cache = await caches.open(CACHE);
@@ -41,7 +59,9 @@ self.addEventListener('fetch', event => {
       }
       return response;
     } catch {
-      const cached = await caches.match(url.pathname);
+      if (!CACHEABLE.has(url.pathname)) throw new Error('Not a cached parser asset');
+      const cache = await caches.open(CACHE);
+      const cached = await cache.match(url.pathname);
       return cached || (event.request.mode === 'navigate' ? caches.match('/index.html') : Response.error());
     }
   })());

@@ -13,6 +13,14 @@ const criterionForField = {
 
 const shortFields = new Set(['language', 'targetLength', 'duration']);
 
+const taskFieldGuidance = {
+  summarisation: { context: 'Explain what you will use the summary for so its focus matches your purpose.' },
+  study: { source: 'Supply the lecture slides, textbook extract or notes you want explained. Name the term, question, page or slide in your focus above.' },
+  coding: { source: 'Supply the relevant documentation or lecture material. Put actual code in the separate code field.', criteria: 'Supply the problem specification, allowed tools or required tests if this is an assignment.' },
+  report: { source: 'Supply the case study, readings or evidence the report should use. Put your own writing in the separate draft field.', criteria: 'Supply the assignment guide, rubric or template sections the report should follow.' },
+  presentation: { source: 'Supply the evidence, notes or existing slide text the presentation should use.', criteria: 'Supply the presentation brief, marking criteria or required sections if available.' }
+};
+
 const fieldGuidance = {
   context: 'Add the subject, course or situation that explains why you need this response.',
   purpose: 'State the report question and what your report should achieve.',
@@ -29,6 +37,7 @@ const fieldGuidance = {
   duration: 'Give the presentation time or slide limit if one applies.',
   source: 'Supply the relevant material this request depends on; a filename alone is insufficient.',
   code: 'Supply the relevant code if the request depends on an existing implementation.',
+  examples: 'Choose examples, analogies or practice only if they help you learn. This is an optional preference, not a quality criterion.',
   speakerNotes: 'Describe the talking points or speaker notes you would find useful.',
   constraints: 'Add real limits or requirements; leave this blank if none apply.'
 };
@@ -41,22 +50,24 @@ export function getPersonalisationFields(input, criteria = analysePrompt(input))
   // Others is described on Home. Keep its value in details.taskDescription;
   // do not ask the same question again during personalisation.
   const fields = task.fields.filter(field => field.key !== 'taskDescription');
-  if (task.id === 'study' && byKey.get('source')?.status !== 'N/A') {
-    fields.push({ key: 'source', label: 'Relevant source material', placeholder: 'Paste the notes or text this request depends on.', multiline: true });
-  }
   fields.push({ key: 'constraints', label: 'Other requirements or limits', placeholder: 'Optional: use only supplied material, a word limit, or another real requirement' });
 
   return fields.map(field => {
     const material = field.multiline && MATERIAL_FIELDS[field.key];
     const criterion = criterionForField[field.key];
     const row = byKey.get(criterion);
-    const priority = field.key !== 'currentKnowledge' && row && ['Missing', 'Partial'].includes(row.status) ? 'recommended' : 'optional';
+    const debugging = /\b(debug|fix|error|bug|crash|not working|actual behaviour)\b/i.test(input.original || '');
+    const revision = /\b(review|feedback|edit|revise|my draft|my report)\b/i.test(input.original || '');
+    const relevant = !['currentKnowledge', 'examples', 'speakerNotes'].includes(field.key) && (field.key !== 'actual' || debugging) && (field.key !== 'preserve' || revision);
+    const priority = relevant && row && ['Missing', 'Partial'].includes(row.status) ? 'recommended' : 'optional';
     return {
       ...field, criterion, required: false,
       inputKind: material ? 'material' : shortFields.has(field.key) ? 'short' : 'sentence',
+      // Material availability is independent of whether the original diagnosis needs it.
+      alwaysVisible: Boolean(material) && field.key !== 'criteria',
       priority,
       placeholder: priority === 'recommended' ? field.placeholder?.replace(/^Optional:\s*/i, '') : field.placeholder,
-      guidance: fieldGuidance[field.key] || row?.suggestion || row?.reason || '',
+      guidance: taskFieldGuidance[task.id]?.[field.key] || fieldGuidance[field.key] || row?.suggestion || row?.reason || '',
       ...(material ? { material } : {})
     };
   });

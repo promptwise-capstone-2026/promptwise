@@ -26,3 +26,24 @@ test('empty, binary and unreadable material produce actionable errors', async ()
   await assert.rejects(readTextMaterial(file('notes.txt', 'a\0b')), hasCode('invalid_text'));
   await assert.rejects(readTextMaterial(file('notes.txt', 'data', { text: async () => { throw new Error('I/O'); } })), hasCode('read_failed'));
 });
+
+test('document intake rejects unsupported, oversized, mismatched and cancelled files without reading', async () => {
+  const { readMaterial, DOCUMENT_MATERIAL_MAX_BYTES } = await import('../src/materials.js');
+  let reads = 0;
+  const document = (name, overrides = {}) => ({ name, size: 100, type: '', arrayBuffer: async () => { reads++; return new Uint8Array(100).buffer; }, ...overrides });
+  await assert.rejects(readMaterial(document('video.mp4')), hasCode('unsupported_type'));
+  await assert.rejects(readMaterial(document('lecture.pdf', { size: DOCUMENT_MATERIAL_MAX_BYTES + 1 })), hasCode('too_large'));
+  await assert.rejects(readMaterial(document('lecture.pdf', { type: 'image/png' })), hasCode('unsupported_type'));
+  await assert.rejects(readMaterial(document('lecture.pdf'), { field: 'code' }), hasCode('unsupported_type'));
+  const controller = new AbortController(); controller.abort();
+  await assert.rejects(readMaterial(document('lecture.pdf'), { signal: controller.signal }), { name: 'AbortError' });
+  assert.equal(reads, 0);
+});
+
+test('a renamed or malformed document never becomes source text', async () => {
+  const { readMaterial } = await import('../src/materials.js');
+  for (const name of ['lecture.pdf', 'lecture.docx', 'lecture.pptx']) {
+    const bytes = new TextEncoder().encode('This is not a real document.');
+    await assert.rejects(readMaterial({ name, type: '', size: bytes.length, arrayBuffer: async () => bytes.buffer }), hasCode('invalid_document'));
+  }
+});

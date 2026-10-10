@@ -28,6 +28,7 @@ test('the server serves the complete browser bundle, including queries and HEAD'
     assert.equal(response.status, 200, path);
     assert.equal(await response.text(), `public asset: ${path}`);
     assert.equal(response.headers.get('cache-control'), 'no-store');
+    if (path.endsWith('.mjs')) assert.match(response.headers.get('content-type'), /javascript/);
   }
   assert.equal((await fetch(url + '/')).status, 200);
   const head = await fetch(url + '/index.html', { method: 'HEAD' });
@@ -47,7 +48,8 @@ test('private material and non-browser artifacts are denied regardless of path c
     '/%70rivate%2Freferences%2Freport.fig', '/private//references/report.fig',
     '/%2570rivate/references/report.fig', '/src/../Private/references/report.fig',
     '/.env', '/.git/config', '/README.md', '/docs/FRONTEND_REVIEW.md',
-    '/tests/server.test.mjs', '/Scripts/serve.mjs', '/api/analysis'
+    '/tests/server.test.mjs', '/Scripts/serve.mjs', '/api/analysis',
+    '/node_modules/pdfjs-dist/build/pdf.mjs', '/public/vendor/unknown.mjs', '/public/vendor/.env'
   ]) {
     const response = await fetch(url + path);
     assert.equal(response.status, 403, path);

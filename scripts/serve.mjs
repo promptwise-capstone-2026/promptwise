@@ -2,21 +2,26 @@ import { createServer } from 'node:http';
 import { readFile, realpath, stat } from 'node:fs/promises';
 import { dirname, extname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { readFileSync } from 'node:fs';
 
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+// Generated from pinned installed packages by predev/pretest. Never expose node_modules.
+const vendorAssets = JSON.parse(readFileSync(resolve(projectRoot, 'public/vendor/manifest.json'), 'utf8'));
+if (!Array.isArray(vendorAssets) || vendorAssets.some(path => !/^\/public\/vendor\/[\w./-]+$/.test(path) || path.includes('..'))) throw new Error('Invalid parser asset manifest');
 // Serve only the browser bundle. A directory denylist is unsafe on a
 // case-insensitive filesystem and could expose new non-source artifacts.
 export const PUBLIC_PATHS = [
   '/index.html', '/sw.js', '/src/app.js', '/src/styles.css',
   '/src/tasks.js', '/src/rules.js', '/src/guidance.js',
-  '/src/validation.js', '/src/workflow.js', '/src/materials.js',
-  '/public/icon.svg', '/public/manifest.webmanifest'
+  '/src/validation.js', '/src/workflow.js', '/src/materials.js', '/src/document-materials.js',
+  '/public/icon.svg', '/public/manifest.webmanifest', '/public/vendor/manifest.json', ...vendorAssets
 ];
 const publicPaths = new Set(PUBLIC_PATHS);
 const types = {
   '.css': 'text/css; charset=utf-8',
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
+  '.mjs': 'text/javascript; charset=utf-8',
   '.json': 'application/json; charset=utf-8',
   '.svg': 'image/svg+xml',
   '.webmanifest': 'application/manifest+json'

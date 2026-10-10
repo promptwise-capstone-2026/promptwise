@@ -7,6 +7,9 @@ learning-contracts/
 *.docx
 *.pdf
 *.fig
+*.pptx
+*.doc
+*.ppt
 
 # Secrets and local settings
 .env
@@ -25,3 +28,6 @@ coverage/
 *.tmp
 .DS_Store
 Thumbs.db
+
+# Reproducible local document parser bundles
+public/vendor/

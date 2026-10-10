@@ -136,3 +136,14 @@ test('custom tasks carry source requirements from the Home description', () => {
   assert.equal(statuses(input).source, 'Missing');
   assert.match(generatePrompt(input), /Ask me to provide the source material/);
 });
+
+test('lecture slide references need material, while available optional input does not make it mandatory', () => {
+  const input = { taskId: 'study', original: 'Explain the term shown on slide 4 of my lecture slides.' };
+  assert.equal(analysePrompt(input).find(row => row.key === 'source').status, 'Missing');
+  const withMaterial = { ...input, details: { source: '[Slide 4]\nPhishing uses deceptive messages to obtain sensitive information.', examples: 'One worked example', criteria: 'Use the lecture terminology.' } };
+  assert.equal(analysePrompt(withMaterial).find(row => row.key === 'source').status, 'Present');
+  assert.equal(analysePrompt(withMaterial).find(row => row.key === 'constraints').status, 'Present');
+  assert.match(generatePrompt(withMaterial), /Examples or practice requested: One worked example/);
+  assert.match(generatePrompt(withMaterial), /Phishing uses deceptive messages/);
+  assert.equal(analysePrompt({ taskId: 'study', original: 'Explain phishing.' }).find(row => row.key === 'source').status, 'N/A');
+});
