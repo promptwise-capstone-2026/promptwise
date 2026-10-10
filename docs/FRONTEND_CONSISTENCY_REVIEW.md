@@ -148,3 +148,9 @@ prompt; a smaller minimum height would look tidier.
 - Independently ran `npm test`: 56/56 passed, and `git diff --check`: clean. A focused module check verified affected recommended placeholders across all six tasks and unchanged optional wording.
 - Did not repeat Claude's browser audit; its results and browser/device limitations above remain attributed to that review. No paid API calls, pushes or publication.
 - Optional visual recommendations remain proposals; none was applied in this follow-up.
+
+## About page width correction — 10 October 2026
+
+User-reported Safari screenshot showed a large unused strip on the desktop About & team page. The cause was `.about { max-width: 860px; }` inside the wider application shell. Changed that cap to `100%` so the content, section cards and divider align with the header and footer content edges. Existing three-column team cards remain intact. Cache bumped to `promptwise-v17`.
+
+Focused verification in isolated Chromium: widths 320, 375, 768, 960, 1440 and 1920 px; all About sections reach the available content edge, no horizontal overflow, no console errors. Visually inspected screenshots at 375 and 1440 px. Root-font resizing to 200% did not overflow; Return to prompt and History navigation passed. No JavaScript or application behaviour changed, so the full regression suite was not repeated for this CSS-only correction. Safari remains a user manual check. No paid API calls or saved-user-data changes.

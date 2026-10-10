@@ -422,7 +422,7 @@ select.text-field { appearance: none; padding-right: 40px; background-image: lin
 
 /* ---------- About & team ---------- */
 
-.about { max-width: 860px; }
+.about { max-width: 100%; }
 .about-lead { font-size: 1.12rem; font-weight: 700; color: var(--ink); margin-bottom: 10px; }
 .about-text { color: var(--ink-2); margin-bottom: 18px; }
 .about-section { margin-bottom: 18px; display: grid; gap: 10px; color: var(--ink-2); }
