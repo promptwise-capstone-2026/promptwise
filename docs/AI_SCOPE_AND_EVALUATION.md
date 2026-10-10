@@ -49,9 +49,11 @@ methodology; this local note does not amend a submitted document.
   adapter for seven-criterion analysis and rewriting, structured output and
   response validation, explicit mode selection and data disclosure, error handling,
   request cancellation, input/output limits and an attempts allowance.
-- Live AI quality, latency, cost and account/model availability remain unverified
-  until the personal project key is configured and representative cases are run.
-  Mock integration results are not model-effectiveness evidence.
+- Personal-key connectivity, latency and usage were checked on 10 October with
+  synthetic examples across all six tasks and one real browser flow. Calibration
+  found unresolved judgement errors; independent effectiveness evaluation remains
+  open. See AI_INTEGRATION_REVIEW.md for results and limitations. Mock integration
+  results and calibration examples are not independent model-effectiveness evidence.
 - The trial model is `gpt-4.1-mini-2025-04-14`, a configurable implementation
   choice rather than a report requirement or a claim that it is the best model.
 - Only accepted text is sent when an AI action is selected after agreement.
@@ -111,8 +113,8 @@ findings; API access alone does not demonstrate those contributions.
 
 ## Next milestones
 
-1. Configure the personal project API key outside Git and run a small local smoke
-   test with non-confidential examples. Record tokens, latency and failures.
+1. Completed: personal project key configured outside Git, with small synthetic
+   live API checks. Recorded tokens, latency and failures; no private references sent.
 2. Collect independent diagnostic and rewrite judgements and student usability
    evidence using the protocol above. Keep the labelled local engine for comparison.
 3. Finish private GitHub backup and CI verification; prepare a hosted demo only
@@ -121,4 +123,4 @@ findings; API access alone does not demonstrate those contributions.
 
 The learning contract's testing milestone was 9 October, with the draft report
 on 16 October and final submission on 23 October. Do not silently change these
-dates or claim that live AI evaluation has already been completed.
+dates or describe integration/calibration checks as completed independent AI evaluation.
