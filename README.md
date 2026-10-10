@@ -1,16 +1,139 @@
 # PromptWise
 
-PromptWise helps students inspect and improve a prompt before copying it into a generative AI tool. Local rules mode is the default and keeps prompt processing in the browser. Optional OpenAI analysis and rewriting are available for local testing and a password-protected hosted pilot after configuring a server-side key. AI mode sends selected text only after explicit agreement and action; each result identifies its mode.
+**A student prompt coach developed for the UTS Information Systems Capstone, 2026.**
 
-## Run on this Mac
+PromptWise helps students turn an initial idea into a clearer prompt. It explains
+missing or unclear details, offers task-specific personalisation, and produces a
+draft the student can review, edit and copy into their chosen AI tool.
 
-1. Open this folder in Visual Studio Code.
-2. Install the pinned browser parsers with `npm ci --omit=optional` (once after cloning or dependency changes).
-3. Run `npm run dev`.
-4. Open `http://127.0.0.1:4173` in a browser.
-5. Run `npm test` to check shared logic, file validation and static-server privacy controls.
+**[Open the hosted demo](https://promptwise-ljw9.onrender.com/)** ·
+[Team source repository](https://github.com/promptwise-capstone-2026/promptwise)
 
-Node 22.13 or later is required (the current Mac has Node 24). The dev/test commands prepare local parser assets automatically. The server listens only on this Mac. No CDN is used at runtime. Clipboard access works on localhost.
+The demo requires shared pilot access. Ask the project lead privately for access;
+passwords and API keys are not included in this repository. Testing the hosted
+website does not require a GitHub account, local installation or your own API key.
+
+## Current features
+
+- Five steps: **Task → Prompt → Analysis → Personalise → Compare**.
+- Six task types: Study Support, Summarisation, Coding Assistance, Report Writing,
+  Presentation Preparation and Others.
+- Seven task-aware criteria: clarity, context, specificity, constraints, output
+  format, audience/level and input/source material. Findings are guidance, not grades.
+- Local rules mode without an API key, or optional OpenAI analysis and rewriting
+  after explicit consent. Each result identifies its mode.
+- Browser extraction of text from PDF, DOCX, PPTX, TXT and MD files, with review
+  before accepting the extracted text. Code fields accept TXT/MD only.
+- An editable improved prompt, exact-text copying and synthetic practice examples.
+- Optional browser-local History, export/deletion controls and saved-work recovery.
+- Responsive layouts, keyboard controls and reduced-motion support.
+
+The app does not automatically submit the final prompt to another AI tool for
+completion of the student's task.
+
+## Run on your computer
+
+Use **Node.js 24 LTS**, matching CI and the hosted demo. The package minimum is
+Node 22.13. Install Node.js from [nodejs.org](https://nodejs.org/en/download).
+
+1. Accept the GitHub repository invitation and sign in to view the private source.
+2. Download **Code → Download ZIP** and extract it, or clone the repository if you
+   already use Git.
+3. Open the project folder, where `package.json` is located. In VS Code, choose
+   **File → Open Folder**, then **Terminal → New Terminal**.
+4. Install dependencies:
+
+   ```sh
+   npm ci --omit=optional
+   ```
+
+5. Start the local server:
+
+   ```sh
+   npm run dev
+   ```
+
+6. Open **http://127.0.0.1:4173/**. Keep the terminal open while using the app;
+   press **Ctrl+C** to stop the server.
+
+A fresh checkout runs local rules without a `.env` file or API key. Local OpenAI
+mode needs separate server-side configuration; use the hosted demo to test AI
+without configuring your own key. The demo password is for the hosted website,
+not GitHub sign-in or local rules.
+
+The dev/test commands prepare local parser assets automatically. The local server
+binds to this computer's loopback address. No CDN is used at runtime. Clipboard
+access works on localhost. These steps follow the checked project scripts; they
+are not evidence of testing every teammate's operating system.
+
+## Team access and feedback
+
+Reviewers can use **Read** access to view/download source and discuss issues in
+this Organization repository. Local edits to a downloaded copy do not change
+this repository. The project lead manages integration and deployment.
+
+For a bug report, include the task, browser/device, steps to reproduce, expected
+behaviour and actual behaviour. Add a screenshot with sensitive text hidden.
+Use short, non-sensitive examples when testing the shared AI allowance.
+
+The deployment source remains `tlqthai111/promptwise`; the team review copy is
+`promptwise-capstone-2026/promptwise`. They do not synchronise automatically.
+Update the team copy when publishing a new reviewed milestone. Development
+commands do not push code or deploy the website automatically.
+
+## Team and responsibilities
+
+| Team member | Responsibility focus |
+| --- | --- |
+| Luu Quoc Thai Tran | System architecture, prompt-framework implementation, application development, AI/API integration, evaluation planning and overall technical integration. |
+| Noah Holt | Prompt-engineering and prompt-quality research, GenAI in higher education, existing-tool research, test prompts/use cases and related literature review contributions. |
+| Angela Liu | Student use of GenAI, user requirements, mobile user flows, wireframes and usability-test planning. |
+
+**Shared work:** the Design Thinking process, existing-tool review, testing,
+meetings, presentations, discussion/conclusions and final-report review.
+**Project supervisor:** Dr Amara Atif.
+
+These are responsibility focus areas, not proof that all allocated activities
+have been completed. Final contribution records should reflect actual work.
+See [About page content](docs/ABOUT_CONTENT.md) for the detailed credits.
+
+## Technical overview
+
+- **Frontend:** HTML, CSS and JavaScript ES modules; no frontend framework.
+- **Server:** Node.js HTTP server with a static-file allowlist and server-side
+  OpenAI Responses API integration. API credentials stay on the server.
+- **Document text:** PDF.js and fflate with browser-side extraction and limits.
+- **Storage:** optional student History in browser storage; SQLite on a Render
+  persistent disk stores only hosted AI usage counters.
+- **Hosting and checks:** Render Node web service; GitHub Actions runs local tests.
+
+## Verification and limits
+
+Run the non-billable regression checks with:
+
+```sh
+npm test
+```
+
+The recorded hosted milestone passed **63/63 regression tests** and **55/55
+mocked browser checks** before release; see [the verification record](docs/RENDER_DEMO_SETUP.md#verification-record).
+On 10 October 2026, the project lead reported successful hosted AI analysis and
+rewriting. Read-only counter checks before and after a Render service restart
+both returned `calls: 2` and `reserved_micro_usd: 21380`, confirming persistence
+for that tested restart. These counters are reservations, not provider billing.
+
+Known limits:
+
+- Shared demo password; no individual accounts, sign-out UI or cross-device sync.
+- No OCR or interpretation of scanned pages, images, diagrams, audio or video.
+- History can be lost when browser data is cleared; export important work.
+- AI suggestions can be wrong; independent learning-effectiveness and model-quality
+  evaluation remain open. Findings and usage counts do not prove learning gains.
+- Automated accessibility checks and targeted manual checks have been recorded;
+  no WCAG conformance certification is claimed. Real-device and assistive-technology
+  coverage remains limited; see [the frontend review](docs/FRONTEND_CONSISTENCY_REVIEW.md).
+- Pilot API requests share a global allowance and a ten-second spacing rule.
+  The internal budget estimate is not a guaranteed OpenAI spending cap.
 
 ## Supplying material
 
@@ -22,9 +145,18 @@ The source diagnosis still depends on the task: a general study explanation can 
 
 ## Source and decisions
 
-The report and learning contract are stored in `private/references/` on this Mac and excluded from Git. See [PROJECT_NOTES.md](PROJECT_NOTES.md) and [the personalisation/material review](docs/PERSONALISATION_MATERIALS_REVIEW.md) for requirements, implementation choices and limits. Keep reports, learning contracts, `.env` files, exported designs, dependencies and generated parser assets out of Git.
+Private assessment documents and real `.env` files are excluded from Git.
+They are not required to run local rules. See [PROJECT_NOTES.md](PROJECT_NOTES.md)
+and [the personalisation/material review](docs/PERSONALISATION_MATERIALS_REVIEW.md)
+for requirements, implementation choices and limits. Keep reports, learning
+contracts, credentials, exported designs, dependencies and generated parser assets
+out of Git.
 
-A private source backup is configured at `tlqthai111/promptwise`. Setup and development commands do not push code or deploy the website automatically.
+This is a private team repository. A public portfolio release is a separate
+publication decision. Amara's conditional support covers internal API analysis
+and rewriting aligned with the original objectives; it is not approval of every
+extension. Optional History is user-authorised and academic scope confirmation
+remains pending.
 
 ## Optional local AI testing
 
@@ -35,10 +167,11 @@ mode on Home and agree to the text disclosure before analysing. You can keep
 using local rules without a key. Real connectivity and calibration checks are recorded in
 [the AI integration review](docs/AI_INTEGRATION_REVIEW.md); independent model-quality evaluation remains open.
 
-`npm start` also prepares local parser assets. Hosting uses a Node web service,
-with `HOST=0.0.0.0` and the provider's `PORT`. Remote AI is unavailable at this
-milestone; hosted AI needs access and durable usage controls before activation.
-The `.github/workflows/checks.yml` workflow runs non-billable tests when uploaded.
+`npm start` also prepares local parser assets. The deployed pilot uses a Node
+web service with `HOST=0.0.0.0`, the provider's `PORT`, shared access protection and
+durable usage controls. See [Render demo setup](docs/RENDER_DEMO_SETUP.md).
+The `.github/workflows/checks.yml` workflow runs non-billable tests on pushes and
+pull requests; it does not deploy the website.
 
 ## Practice examples
 
@@ -85,5 +218,7 @@ This history extension is user-authorised; academic scope confirmation remains p
 See [Render demo setup](docs/RENDER_DEMO_SETUP.md). The hosted pilot uses one
 shared browser password prompt, not student accounts. AI usage counters persist
 on a small server disk; student History remains optional and browser-local.
-Keep AI disabled until the first deployment is verified. Publishing code,
+The project lead has checked the initial hosted workflow and counter persistence
+as recorded above. For any new deployment, keep AI disabled until access and
+persistent storage are checked. Publishing code, changing repository visibility,
 creating paid services and live API testing remain explicit release actions.
