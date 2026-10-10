@@ -323,20 +323,17 @@ function statusBadge(status) {
   return `<span class="status-badge status-${meta.cls}"><span class="status-icon" aria-hidden="true">${meta.icon}</span>${esc(status)}${meta.spoken ? `<span class="sr-only"> (${meta.spoken})</span>` : ''}</span>`;
 }
 
-function criterionCard(row, wide) {
+function criterionCard(row) {
   const meta = STATUS[row.status] || STATUS['N/A'];
-  const open = wide || state.expanded.has(row.key);
+  const open = state.expanded.has(row.key);
   const panelId = `criterion-${row.key}-panel`;
   const body = `<p class="criterion-reason">${esc(row.reason)}</p>${row.suggestion ? `<p class="criterion-suggestion"><span class="suggestion-label">Suggestion</span> ${esc(row.suggestion)}</p>` : ''}`;
-  const head = wide
-    ? `<h3 class="criterion-head" tabindex="-1" data-fk="toggle-${esc(row.key)}"><span class="criterion-name">${esc(row.label)}</span>${statusBadge(row.status)}</h3>`
-    : `<h3 class="criterion-head"><button type="button" class="criterion-toggle" data-toggle="${esc(row.key)}" data-fk="toggle-${esc(row.key)}" aria-expanded="${open}" aria-controls="${panelId}"><span class="criterion-name">${esc(row.label)}</span>${statusBadge(row.status)}<span class="chevron" aria-hidden="true"></span></button></h3>`;
+  const head = `<h3 class="criterion-head"><button type="button" class="criterion-toggle" data-toggle="${esc(row.key)}" data-fk="toggle-${esc(row.key)}" aria-expanded="${open}" aria-controls="${panelId}"><span class="criterion-name">${esc(row.label)}</span>${statusBadge(row.status)}<span class="chevron" aria-hidden="true"></span></button></h3>`;
   return `<li class="criterion criterion-${meta.cls}${open ? ' is-open' : ''}">${head}<div class="criterion-panel" id="${panelId}"${open ? '' : ' hidden'}>${body}</div></li>`;
 }
 
 function analysisScreen() {
   const result = state.analysis;
-  const wide = desktop.matches;
   const review = result.criteria.filter(row => row.status === 'Missing' || row.status === 'Partial');
   const allOpen = result.criteria.every(row => state.expanded.has(row.key));
   return `${header()}<main class="content" id="main" tabindex="-1">
@@ -351,8 +348,8 @@ function analysisScreen() {
       <section class="analysis-main" aria-labelledby="evaluation-heading">
         <div class="section-heading"><h2 id="evaluation-heading">Prompt evaluation</h2><p class="small-note">Seven criteria · guidance, not a score</p></div>
         <p class="review-summary">${review.length ? `Worth reviewing: <strong>${review.map(row => esc(row.label)).join(', ')}</strong>.` : (result.mode === 'openai' ? 'The AI review did not flag any active criterion. Review its judgement and add details if useful.' : 'The local checks did not flag any active criterion. You can still add details.')}</p>
-        ${wide ? '' : `<div class="card-tools"><p class="card-hint">Tap a criterion to see why and what to add.</p><button type="button" class="text-button" data-action="expand-all" data-fk="expand-all">${allOpen ? 'Collapse all' : 'Expand all'}</button></div>`}
-        <ul class="criteria-list">${result.criteria.map(row => criterionCard(row, wide)).join('')}</ul>
+        <div class="card-tools"><p class="card-hint">Select a criterion to show or hide its explanation.</p><button type="button" class="text-button" data-action="expand-all" data-fk="expand-all">${allOpen ? 'Collapse all' : 'Expand all'}</button></div>
+        <ul class="criteria-list">${result.criteria.map(row => criterionCard(row)).join('')}</ul>
         <p class="support-text">${review.length ? 'Add the details you know on the next screen. Leave genuinely unknown information blank.' : (result.mode === 'openai' ? 'AI judgements can be wrong. Review the prompt yourself before relying on them.' : 'The local checks found matching words or details for every active criterion. Review the prompt yourself before relying on it.')}</p>
       </section>
     </div>
@@ -551,7 +548,7 @@ function replaceBar() {
 
 // ---------- Screen 5: Comparison ----------
 
-function usedDetails(input) {
+function usedDetails(input, mode) {
   const fields = state.analysis?.fields || [];
   // Same order as the form: recommended fields first, then optional ones.
   const order = [...fields.filter(field => field.priority === 'recommended'), ...fields.filter(field => field.priority !== 'recommended')].map(field => field.key);
@@ -570,8 +567,8 @@ function usedDetails(input) {
   }
   return `<details class="used-details"${desktop.matches ? ' open' : ''}>
     <summary data-fk="used-summary">What this draft includes</summary>
-    ${rows.length ? `<dl class="used-list">${rows.join('')}</dl>` : '<p>No extra details or preferences were supplied, so the draft keeps your original words.</p>'}
-    <p class="field-help">${engine === 'openai' ? 'The AI rewrite uses the relevant details you supplied. Unknown information should remain explicit; check for assumptions or changed meaning.' : 'PromptWise may also add fixed wording for this task, such as asking the AI to flag claims you should verify or to request missing material.'}</p>
+    ${rows.length ? `<dl class="used-list">${rows.join('')}</dl>` : `<p>${mode === 'openai' ? 'No extra details or preferences were supplied. Review the rewrite for assumptions or changes in meaning.' : 'No extra details or preferences were supplied, so the draft keeps your original words.'}</p>`}
+    <p class="field-help">${mode === 'openai' ? 'The AI rewrite uses the relevant details you supplied. Unknown information should remain explicit; check for assumptions or changed meaning.' : 'PromptWise may also add fixed wording for this task, such as asking the AI to flag claims you should verify or to request missing material.'}</p>
   </details>`;
 }
 
@@ -594,26 +591,31 @@ function compareScreen() {
     ${warningList(state.draft.warnings, 'Check before using')}
     <div class="compare-grid">
       <section class="compare-col" aria-labelledby="compare-original-heading">
-        <h2 class="section-title" id="compare-original-heading">Original prompt</h2>
+        <div class="compare-heading">
+          <h2 class="section-title" id="compare-original-heading">Original prompt</h2>
+          <p class="field-help">Your starting prompt, kept unchanged for comparison.</p>
+        </div>
         <div class="prompt-box" role="region" tabindex="0" data-fk="compare-original-box" aria-labelledby="compare-original-heading">${esc(state.original)}</div>
       </section>
       <section class="compare-col improved-col" aria-labelledby="improved-label">
-        <div class="improved-head"><label class="field-label section-title" id="improved-label" for="improved">Improved prompt</label><span class="draft-tag">${esc(MODE_LABELS[state.draft.mode]?.tag || `Mode: ${state.draft.mode || 'unknown'}`)}</span><span class="editable-tag">Editable</span></div>
-        <p class="field-help" id="improved-help">Edit anything before copying. Copy uses exactly what is in this box.</p>
+        <div class="compare-heading">
+          <div class="improved-head"><label class="field-label section-title" id="improved-label" for="improved">Improved prompt</label><span class="draft-tag">${esc(MODE_LABELS[state.draft.mode]?.tag || `Mode: ${state.draft.mode || 'unknown'}`)}</span><span class="editable-tag">Editable</span></div>
+          <p class="field-help" id="improved-help">Edit anything before copying. Copy uses exactly what is in this box.</p>
+        </div>
         <textarea id="improved" class="improved-input" data-improved spellcheck="true" aria-describedby="improved-help">${esc(state.improved)}</textarea>
         <div class="copy-row">
           <button class="copy-button" type="button" data-action="copy" data-fk="copy">Copy Prompt</button>
+          <button class="restart-button" type="button" data-action="restart" data-fk="restart">Improve another prompt</button>
           <p class="copy-message${state.copy.kind ? ` is-${state.copy.kind}` : ''}" id="copy-message">${esc(state.copy.text)}</p>
+          ${state.confirmRestart ? `<div class="confirm-bar" role="group" aria-labelledby="restart-message">
+            <p id="restart-message">Start again? Your edited prompt has not been copied and will be cleared.</p>
+            <div class="confirm-actions"><button type="button" class="secondary-button" data-action="confirm-restart" data-fk="confirm-restart">Start again</button><button type="button" class="ghost-button" data-action="cancel-restart" data-fk="cancel-restart">Stay here</button></div>
+          </div>` : ''}
         </div>
       </section>
     </div>
-    ${usedDetails(state.draft.input || input)}
+    ${usedDetails(state.draft.input || input, state.draft.mode)}
     <p class="responsible-note"><strong>Use responsibly.</strong> Check facts, sources and your assessment requirements before using any AI response. Paste this prompt into your chosen AI tool yourself; PromptWise does not automatically submit the final prompt for task completion.</p>
-    ${state.confirmRestart ? `<div class="confirm-bar" role="group" aria-labelledby="restart-message">
-      <p id="restart-message">Start again? Your edited prompt has not been copied and will be cleared.</p>
-      <div class="confirm-actions"><button type="button" class="secondary-button" data-action="confirm-restart" data-fk="confirm-restart">Start again</button><button type="button" class="ghost-button" data-action="cancel-restart" data-fk="cancel-restart">Stay here</button></div>
-    </div>` : ''}
-    <div class="button-stack"><button class="restart-button" type="button" data-action="restart" data-fk="restart">Improve another prompt</button></div>
   </main>`;
 }
 
@@ -992,7 +994,8 @@ async function analyse() {
   if (result && current) {
     state.analysis = result;
     state.analysisKey = key;
-    state.expanded = new Set();
+    // Start desktop reviews expanded and mobile reviews compact; preserve subsequent choices.
+    state.expanded = new Set(desktop.matches ? result.criteria.map(row => row.key) : []);
     state.groupOpen = {};
   }
   if (!stillHere) {

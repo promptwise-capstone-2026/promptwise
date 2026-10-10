@@ -127,3 +127,14 @@ pass. Added skip navigation and fixed preference-summary, enlarged-step and
 text-spacing/task-card clipping. Cache v9. No formal conformance claim; VoiceOver,
 other browsers, real zoom/devices and disabled-user review remain outstanding.
 See docs/ACCESSIBILITY_REVIEW.md. Broad desktop UX changes await the user's feedback.
+
+### Desktop layout feedback — 10 October 2026
+
+Applied the user's screenshot feedback: full-width Prompt Input and Your prompt
+review, desktop explanation toggles with expanded defaults, comparison field
+alignment and grouped copy/restart actions. Mobile defaults remain compact;
+actions wrap with available space. Corrected the misleading no-details AI copy.
+Cache v10. Local tests 48/48, 61 focused browser assertions, 30 layout states and
+nine axe scans (zero detected violations) passed using synthetic/mocked inputs.
+No paid requests or push. See docs/DESKTOP_LAYOUT_REVIEW.md for exact coverage,
+CSS fallback and outstanding browser/assistive-technology limitations.

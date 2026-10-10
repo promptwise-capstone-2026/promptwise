@@ -225,7 +225,7 @@ select.text-field { appearance: none; padding-right: 40px; background-image: lin
 .card-tools { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px; }
 .card-hint { font-size: .85rem; color: var(--muted); }
 .text-button { flex: none; min-height: 44px; padding: 8px 4px; background: none; border: 0; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
-.criteria-list { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 10px; }
+.criteria-list { align-items: start; list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 10px; }
 .criterion { border: 1.5px solid var(--line); border-left: 6px solid; border-radius: var(--radius-sm); background: var(--surface); overflow: hidden; }
 .criterion-present { border-left-color: var(--present-line); }
 .criterion-partial { border-left-color: var(--partial-line); }
@@ -365,14 +365,19 @@ select.text-field { appearance: none; padding-right: 40px; background-image: lin
 
 .compare-grid { display: grid; gap: 22px; margin-top: 18px; }
 .compare-col { min-width: 0; display: grid; gap: 6px; align-content: start; }
-.compare-col .prompt-box { max-height: 220px; }
+.compare-col .prompt-box { max-height: 220px; align-self: start; }
+.compare-heading { display: grid; align-content: start; gap: 6px; }
 .improved-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .improved-head .field-label { font-size: 1.25rem; font-weight: 750; margin-right: auto; }
 .editable-tag, .draft-tag { display: inline-block; padding: 2px 9px; border-radius: 99px; font-size: .74rem; font-weight: 700; }
 .editable-tag { background: var(--present-bg); border: 1px solid var(--present-line); color: var(--present); }
 .draft-tag { background: var(--info-bg); border: 1px solid var(--info-line); color: var(--ink-2); }
 .improved-input { min-height: 300px; resize: vertical; font-size: 1rem; padding: 14px; }
-.copy-row { display: grid; gap: 8px; margin-top: 8px; }
+.copy-row { display: flex; flex-wrap: wrap; align-items: stretch; gap: 10px; margin-top: 8px; }
+.copy-row .copy-button { flex: 1 1 180px; min-width: 0; }
+.copy-row .restart-button { flex: 1 1 260px; min-width: 0; }
+.copy-row .copy-message, .copy-row .confirm-bar { flex: 1 1 100%; }
+.copy-message:empty { display: none; }
 .copy-button {
   min-height: 54px; border-radius: 12px; padding: 10px 16px;
   background: var(--present-bg); border: 2px solid var(--present-line); color: var(--ink);
@@ -391,13 +396,12 @@ select.text-field { appearance: none; padding-right: 40px; background-image: lin
 .used-row dd { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 .from-file { display: inline-block; margin-left: 4px; padding: 0 7px; border-radius: 99px; background: var(--card); font-size: .76rem; font-weight: 600; }
 .responsible-note { margin-top: 18px; padding: 12px 14px; border-radius: var(--radius-sm); background: var(--soft); border: 1px solid var(--line); font-size: .92rem; line-height: 1.5; color: var(--ink-2); }
-.button-stack { display: grid; gap: 10px; margin-top: 18px; }
 .restart-button {
   min-height: 54px; border-radius: 12px; padding: 10px 16px;
-  background: var(--missing-bg); border: 2px solid var(--missing-line);
+  background: var(--surface); border: 2px solid var(--control-line);
   font-size: 1.12rem; font-weight: 750;
 }
-.restart-button:hover { background: #ffd9dc; }
+.restart-button:hover { background: var(--soft); }
 .loading-panel { margin-top: 20px; padding: 18px; border-radius: var(--radius-sm); background: var(--soft); display: flex; align-items: center; gap: 12px; font-weight: 650; }
 
 /* ---------- Larger screens ---------- */
@@ -445,7 +449,6 @@ select.text-field { appearance: none; padding-right: 40px; background-image: lin
   .task-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .step-current { display: none; }
   .choice-grid-format { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-  .copy-row { grid-template-columns: auto 1fr; align-items: center; }
   .copy-button { min-width: 200px; }
 }
 
@@ -470,27 +473,21 @@ select.text-field { appearance: none; padding-right: 40px; background-image: lin
   .primary-button { width: auto; min-width: 280px; }
   .about-actions .primary-button { min-width: 240px; }
   .prompt-input { min-height: 300px; }
-  .screen-1 .content { max-width: 860px; }
 
   .analysis-layout { display: grid; grid-template-columns: minmax(280px, 380px) minmax(0, 1fr); gap: 36px; align-items: start; }
   .analysis-aside { position: sticky; top: 24px; }
   .analysis-aside .prompt-box { max-height: 300px; }
   .analysis-main { margin-top: 0; }
-  .criteria-list { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-  .criterion-head { display: flex; align-items: center; gap: 10px; padding: 14px 14px 8px; }
-  .criterion-head:focus { outline: none; }
-  .criterion-head:focus-visible { outline: 3px solid var(--focus); outline-offset: -3px; }
+  .criteria-list { grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr)); gap: 12px; }
   .criterion-panel { padding-top: 0; }
 
   .personalise-layout { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(300px, 1fr); gap: 36px; align-items: start; }
   .pref-column { position: sticky; top: 24px; }
   .choice-grid-format { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .review-box { max-width: 860px; }
 
   .compare-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); gap: 32px; align-items: start; }
   .compare-col .prompt-box { max-height: 460px; min-height: 160px; }
   .improved-input { min-height: 380px; }
-  .button-stack { justify-items: end; }
   .restart-button { min-width: 280px; }
 }
 
@@ -537,3 +534,13 @@ select.text-field { appearance: none; padding-right: 40px; background-image: lin
 .pref-details > summary { flex-wrap: wrap; }
 .pref-details .optional-count { flex: 1 1 100%; min-width: 0; white-space: normal; overflow-wrap: anywhere; text-align: left; }
 .task-text { grid-template-columns: minmax(0, 1fr); }
+
+/* Share comparison header heights even when help text or badges wrap. */
+@supports (grid-template-rows: subgrid) {
+  @media (min-width: 960px) {
+    .compare-grid { grid-template-rows: auto auto auto; row-gap: 6px; }
+    .compare-col { grid-row: 1 / span 3; grid-template-rows: subgrid; }
+    .compare-col:first-child { grid-column: 1; }
+    .compare-col.improved-col { grid-column: 2; }
+  }
+}

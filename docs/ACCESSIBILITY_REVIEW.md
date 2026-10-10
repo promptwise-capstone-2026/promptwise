@@ -82,7 +82,9 @@ layout overflows above were reproducible and fixed.
   checks on the remaining states.
 - Review with disabled users where feasible; record their needs, observations
   and any unresolved barriers. Do not infer usability from an automated score.
-- Recheck after the requested desktop layout changes and after adding portraits.
+- Focused Chromium checks after the desktop layout changes are recorded in
+  DESKTOP_LAYOUT_REVIEW.md; repeat broader assistive-technology evaluation and
+  recheck after adding portraits.
   Use supplied portraits with meaningful alternatives where informative; a
   portrait duplicating the adjacent name can use empty alt text.
 
