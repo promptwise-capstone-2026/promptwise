@@ -1,6 +1,7 @@
 # PromptWise interface refinement milestone
 
-Prepared on 10 October 2026 from the user's eight feedback items. Baseline code:
+Prepared on 10 October 2026 from the user's eight feedback items and subsequent
+footer/navigation clarification. Baseline code:
 `f3a6acb`. Read the actual checkout status before starting; a later local planning
 commit may be HEAD. This brief updates the previous frontend milestone without
 changing the report's five-stage workflow or seven diagnostic criteria.
@@ -127,10 +128,14 @@ without a corresponding audit.
 
 ## 6. Directional screen transitions
 
-Provide the feel of moving vertically through a guided flow:
+The latest user clarification supersedes the earlier vertical-transition idea.
+Match the horizontal step navigation with horizontal motion or instant changes:
 
-- Forward actions introduce the next content from below; Back introduces it
-  from above. Earlier-step navigation uses the backward direction.
+- Prefer a subtle horizontal slide/fade: forward content enters from the right;
+  backward content enters from the left. Earlier-step navigation uses the
+  backward direction. Instant navigation is an acceptable fallback if motion
+  complicates focus, layout or responsiveness. Do not implement vertical screen
+  transitions.
 - Prefer a short slide/fade, approximately 180–240 ms and modest travel. Treat
   these as starting values to judge in the browser, not requirements from Apple.
 - Retain ordinary scrolling inside long screens. Do not hijack wheel/touch
@@ -173,9 +178,24 @@ progress indicator does not need to pretend to be an ARIA tabs widget.
 
 Use the drafted public copy in `docs/ABOUT_CONTENT.md`.
 
-- Entry label: **About & team**. Put a small persistent text link in the shared
-  footer on every screen; a matching desktop header link is optional. Avoid
-  adding a hamburger menu for one destination.
+- Implement an actual website page reachable through a visible **About & team**
+  link, not just a Markdown credits document or an unlinked route.
+- Add a compact shared website footer on all five workflow screens and About.
+  This is separate from the existing `footer()` helper's sticky action bar.
+  Keep the site footer in normal document flow below the screen content and
+  primary actions; do not cover form fields or fix it to the viewport.
+- Suggested content: **PromptWise**; "A student prompt coach"; **About & team**;
+  **How it works** linking to the real overview section on About; and "UTS
+  Information Systems Capstone · 2026". Only render working destinations.
+- Keep the footer small: one compact row or two short rows on desktop, wrapping
+  or stacked on mobile, with a subtle divider and existing design tokens.
+  The supplied UTS screenshot illustrates footer discoverability; do not copy
+  its large institutional menu, black panel, social links or legal details.
+  QuillBot's public About page provides a related example of a footer About
+  link leading to a dedicated project/company information page.
+- A matching desktop header link is optional. Avoid adding a hamburger menu
+  for one destination. The footer is reachable by ordinary vertical scrolling;
+  horizontal screen transitions do not disable document scrolling.
 - This is an auxiliary page, not Step 6. Hide the five-step progress control on
   About or make its relationship to the preserved workflow unambiguous.
 - Opening About preserves task, prompt, analysis, details, files, edited draft
@@ -209,7 +229,10 @@ browser checks at 320, 375 and 1440 px covering all six branches and:
   pending-file generation guards remain usable in the new groups.
 - Completed/locked step clicks, invalidation, stale drafts, repeated Back/Forward
   and jumping directly back to Task from Personalisation.
-- Directional transitions, reduced motion, keyboard focus and rapid navigation.
+- Horizontal/instant transitions, reduced motion, keyboard focus and rapid
+  navigation. No vertical screen transitions.
+- The compact site footer on every screen, working About/How it works links,
+  mobile wrapping and no overlap with the sticky action bar.
 - About from every stage; edited text and files survive returning; Back works;
   pending async results stay out of the auxiliary page; fresh-session access.
 - Edited Copy, restart, no horizontal overflow and no console errors.
@@ -227,3 +250,5 @@ and any interfaces Codex needs to provide. Do not push, publish or make AI calls
 - [W3C form grouping](https://www.w3.org/WAI/tutorials/forms/grouping/)
 - [W3C form instructions](https://www.w3.org/WAI/tutorials/forms/instructions/)
 - [W3C interaction animation guidance](https://www.w3.org/WAI/WCAG22/Understanding/animation-from-interactions.html)
+
+- [QuillBot public About page and footer](https://quillbot.com/about)

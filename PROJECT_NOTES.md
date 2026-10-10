@@ -50,8 +50,15 @@
 
 ## User feedback and next frontend brief on 10 October 2026
 
-- The user requested clearer future AI wording, broader academic-file support, review of personalisation optionality, sentence fields that wrap/grow, clearer visual grouping, vertical transitions, clickable validated step navigation, and an About/credits page relaying Amara's recommendation.
+- The user requested clearer future AI wording, broader academic-file support, review of personalisation optionality, sentence fields that wrap/grow, clearer visual grouping, horizontal or instant transitions (superseding the initial vertical proposal), clickable validated step navigation, and an About/credits page relaying Amara's recommendation.
 - `docs/UX_REFINEMENT_HANDOFF.md` prepares the next Claude milestone. Keep the current UI design, refine reusable section surfaces, preserve optional personalisation except conditional Other format, allow navigation to completed valid steps and honour reduced motion. The single-line Others input is proposed to become a growing textarea in response to this feedback.
 - `docs/ABOUT_CONTENT.md` contains drafted public copy using confirmed names: Luu Quoc Thai Tran, Noah Holt, Angela Liu and Dr Amara Atif. About is an auxiliary page, not a sixth prompt stage. Individual contribution claims, private contact details and unavailable CV/profile links are omitted.
 - `docs/ATTACHMENT_PLAN.md` recommends PDF/DOCX/PPTX next, visual context with the AI route, and video later. Current TXT/MD handling remains truthful; broader parsing is not implemented by this planning milestone.
 - Current app code remains at the `f3a6acb` implementation. These are handoff documents and proposed design decisions, not completed UI or API features. The original report/contract remain unchanged; publication and paid API use are outside this milestone.
+
+### Footer and navigation clarification on 10 October 2026
+
+- The user's latest instruction replaces vertical screen transitions with horizontal or instant changes matching the step navigation. Normal vertical scrolling within a screen remains available.
+- Credits must be an actual website page accessible through a visible About & team link in a compact site footer on every screen. This footer is separate from the existing sticky Continue/action bar. About remains outside the five-step workflow and preserves the student's work when returning.
+- The UTS screenshot supplied by the user is inspiration for placing information links at the bottom, not a requirement to reproduce a large institutional footer. The proposed compact footer uses PromptWise branding, working About & team and How it works links, and a student capstone/year line. Full team and supervisor information belongs on About.
+- Claude can implement the revised interface brief first using the existing shared interfaces. Codex then reviews the local milestone and proceeds with attachment/backend work and internal AI integration. Take turns editing the checkout; no API or publication is introduced by this clarification.
