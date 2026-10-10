@@ -16,9 +16,6 @@ const STATUS = {
   'N/A': { cls: 'na', icon: '–', spoken: 'not applicable' }
 };
 
-// Sentence-length answers use growing text areas; these short values stay single-line inputs.
-// A shared field kind (short / sentence / material) would let guidance.js own this choice.
-const SHORT_FIELDS = new Set(['language', 'targetLength', 'duration']);
 const GROW_MAX_LINES = 8;
 
 const blankState = () => ({
@@ -193,22 +190,13 @@ function alertBox() {
 
 function modeNote(mode, where) {
   const meta = MODE_LABELS[mode];
-  if (mode !== 'local-rules') {
+  const note = meta?.notes?.[where];
+  if (!note) {
     return `<div class="mode-note"><p class="mode-summary"><span class="mode-pill">${esc(meta?.pill || mode || 'Unknown mode')}</span> Review this result before relying on it.</p></div>`;
   }
-  const analysis = where === 'analysis';
-  const points = analysis
-    ? ['Each status shows whether matching wording or filled-in details were found. The checks cannot judge what your prompt means.',
-      'A Present source only shows that text was supplied; it cannot confirm the material is complete or relevant.',
-      'The review runs in this browser. Nothing you type is sent to an AI service.']
-    : ['The draft is not an AI rewrite and has not been checked for accuracy.',
-      'It contains your words, the details you supplied and fixed wording for this task, such as asking the AI to flag claims to verify or to request missing material.',
-      'Nothing was sent to an AI service. Review and edit the draft before copying it.'];
   return `<div class="mode-note">
-    <p class="mode-summary"><span class="mode-pill">${esc(meta.pill)}</span> ${analysis
-      ? '<strong>Local rules review.</strong> PromptWise checks visible wording and supplied details against seven task-aware criteria. It does not use AI.'
-      : '<strong>Locally assembled draft.</strong> PromptWise combined your prompt with the details you supplied. It does not use AI.'}</p>
-    <details class="mode-details"><summary data-fk="mode-details-${where}">How this ${analysis ? 'review' : 'draft'} works</summary><ul>${points.map(point => `<li>${point}</li>`).join('')}</ul></details>
+    <p class="mode-summary"><span class="mode-pill">${esc(meta.pill)}</span> <strong>${esc(note.title)}</strong> ${esc(note.summary)}</p>
+    <details class="mode-details"><summary data-fk="mode-details-${where}">${esc(note.disclosure)}</summary><ul>${note.details.map(point => `<li>${esc(point)}</li>`).join('')}</ul></details>
   </div>`;
 }
 
@@ -396,7 +384,7 @@ function detailField(field) {
   if (field.material) {
     // Pasted material can be long: keep the box bounded and scroll inside it.
     control = `<textarea id="${id}" class="text-field material-input" data-detail="${field.key}" placeholder="${esc(field.placeholder || '')}" spellcheck="true"${aria}>${esc(value)}</textarea>`;
-  } else if (SHORT_FIELDS.has(field.key)) {
+  } else if (field.inputKind === 'short') {
     control = `<input id="${id}" class="text-field" type="text" data-detail="${field.key}" placeholder="${esc(field.placeholder || '')}" value="${esc(value)}"${aria}>`;
   } else {
     control = `<textarea id="${id}" class="text-field grow" rows="2" data-detail="${field.key}" placeholder="${esc(field.placeholder || '')}" spellcheck="true"${aria}>${esc(value)}</textarea>`;

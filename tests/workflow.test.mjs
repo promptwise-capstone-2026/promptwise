@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { TASKS, LEVELS } from '../src/tasks.js';
 import { validateInput, CUSTOM_TASK_MAX_LENGTH, getValidationFieldMeta } from '../src/validation.js';
-import { analyseWorkflow, improveWorkflow, WorkflowValidationError, analysisFingerprint } from '../src/workflow.js';
+import { analyseWorkflow, improveWorkflow, WorkflowValidationError, analysisFingerprint, WORKFLOW_MODES } from '../src/workflow.js';
 
 const customTask = taskDescription => ({ taskId: 'other', original: 'Help me prepare.', details: { taskDescription } });
 
@@ -22,6 +22,12 @@ test('personalisation offers distinct actionable guidance and correct file metad
     const recommended = fields.filter(field => field.priority === 'recommended');
     assert.equal(new Set(recommended.map(field => field.guidance)).size, recommended.length, task.id);
     assert.ok(recommended.every(field => !/^Optional:/i.test(field.placeholder || '')));
+    for (const field of fields) {
+      assert.ok(['short', 'sentence', 'material'].includes(field.inputKind), `${task.id}: ${field.key}`);
+      assert.equal(field.inputKind === 'material', Boolean(field.material), field.key);
+      if (['language', 'targetLength', 'duration'].includes(field.key)) assert.equal(field.inputKind, 'short');
+      if (['context', 'focus', 'goal', 'constraints'].includes(field.key)) assert.equal(field.inputKind, 'sentence');
+    }
     for (const field of fields.filter(field => ['source', 'code', 'draft', 'criteria'].includes(field.key))) {
       assert.equal(field.material.accept, '.txt,.md,text/plain,text/markdown');
       assert.ok(field.material.purpose);
@@ -76,6 +82,13 @@ test('the shared workflow supports all six branches without modifying user input
     assert.equal(analysis.mode, 'local-rules');
     assert.equal(analysis.criteria.length, 7);
     assert.equal(improvement.mode, 'local-rules');
+    for (const [mode, location] of [[analysis.mode, 'analysis'], [improvement.mode, 'compare']]) {
+      const meta = WORKFLOW_MODES[mode];
+      assert.ok(meta.pill && meta.tag);
+      const note = meta.notes[location];
+      assert.ok(note.title && note.disclosure && note.details.length > 0);
+      assert.match(note.summary, /does not use AI/);
+    }
     assert.ok(improvement.improvedPrompt.includes(input.original));
     assert.deepEqual(input, before);
     assert.ok(analysis.fields.every(field => field.required === false));

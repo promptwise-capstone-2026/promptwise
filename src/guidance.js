@@ -11,6 +11,8 @@ const criterionForField = {
   speakerNotes: 'format', constraints: 'constraints'
 };
 
+const shortFields = new Set(['language', 'targetLength', 'duration']);
+
 const fieldGuidance = {
   context: 'Add the subject, course or situation that explains why you need this response.',
   purpose: 'State the report question and what your report should achieve.',
@@ -45,15 +47,17 @@ export function getPersonalisationFields(input, criteria = analysePrompt(input))
   fields.push({ key: 'constraints', label: 'Other requirements or limits', placeholder: 'Optional: use only supplied material, a word limit, or another real requirement' });
 
   return fields.map(field => {
+    const material = field.multiline && MATERIAL_FIELDS[field.key];
     const criterion = criterionForField[field.key];
     const row = byKey.get(criterion);
     const priority = field.key !== 'currentKnowledge' && row && ['Missing', 'Partial'].includes(row.status) ? 'recommended' : 'optional';
     return {
       ...field, criterion, required: false,
+      inputKind: material ? 'material' : shortFields.has(field.key) ? 'short' : 'sentence',
       priority,
       placeholder: priority === 'recommended' ? field.placeholder?.replace(/^Optional:\s*/i, '') : field.placeholder,
       guidance: fieldGuidance[field.key] || row?.suggestion || row?.reason || '',
-      ...(field.multiline && MATERIAL_FIELDS[field.key] ? { material: MATERIAL_FIELDS[field.key] } : {})
+      ...(material ? { material } : {})
     };
   });
 }
