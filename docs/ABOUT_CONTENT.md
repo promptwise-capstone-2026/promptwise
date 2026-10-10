@@ -44,19 +44,34 @@ result identifies its mode. AI findings can be wrong. Only an explicit Analyse
 or Create action sends the selected text to OpenAI, after you agree. Original
 files and images are not uploaded. The final prompt is still copied manually.
 
-### Meet the team
+### Team & responsibilities
 
 **Luu Quoc Thai Tran**
 
-PromptWise project team
+**Application development & technical integration**
+
+System architecture, prompt-framework implementation, application development,
+AI/API integration, evaluation planning and overall project integration.
 
 **Noah Holt**
 
-PromptWise project team
+**Prompt engineering research**
+
+GenAI in higher education, prompt-engineering principles and prompt quality,
+existing-tool research, test prompts/use cases and related literature review
+contributions.
 
 **Angela Liu**
 
-PromptWise project team
+**UX & student learning**
+
+Student use of GenAI and AI-assisted learning, user requirements, mobile UI and
+user flows, wireframes and usability-test planning.
+
+**Shared work:** We carried out the Design Thinking process together.
+Existing-tool review is shared, with Noah focusing on prompt engineering research.
+All three team members contribute to testing, meetings, presentations, discussion
+and conclusions, and final-report review.
 
 Developed as part of **41195 Information Systems Capstone** at the
 **University of Technology Sydney**, 2026.
@@ -79,8 +94,14 @@ copied manually into the student's chosen tool.
 
 ## Implementation notes — do not render as public copy
 
-- The team cards have equal visual weight. No member-specific contribution or
-  professional role is assigned without confirmed information.
+- Responsibilities were supplied by Thai on 10 October 2026 as the initial
+  allocation. They identify focus areas, not proof that planned work is completed.
+  The report assigns Existing Tools and Methodology/Design Thinking to all three;
+  Noah also has GenAI in Higher Education. Preserve those shared contributions.
+- Appendix B in the supplied report is still a contribution-table template. Fill
+  it later using actual work/evidence, including AI assistance where applicable.
+- Portraits and profile URLs have not been supplied yet; add the actual assets
+  later. Do not substitute generic or invented portraits.
 - The authorisation to read private source files does not authorise publishing
   their contents, student numbers, emails or downloadable originals.
 - Personal portfolio, CV and LinkedIn links can be added after the team supplies

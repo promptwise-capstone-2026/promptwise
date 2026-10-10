@@ -521,3 +521,19 @@ select.text-field { appearance: none; padding-right: 40px; background-image: lin
 .example-panel .field-help, .example-panel p { margin: 0; }
 .example-panel .secondary-button { justify-self: start; max-width: 100%; }
 .example-loaded { color: var(--ink-2); font-size: .9rem; }
+
+.team-card { align-content: start; gap: 10px; overflow-wrap: anywhere; }
+.team-card h3 { margin: 0; font-size: 1.05rem; line-height: 1.4; }
+.team-role { font-weight: 650; color: var(--ink); }
+
+/* Keyboard users can bypass the repeated header and progress navigation. */
+.skip-link { position: fixed; top: 10px; left: 10px; z-index: 100; transform: translateY(-200%); padding: 12px 18px; border-radius: 8px; background: var(--ink); color: #fff; font-weight: 700; }
+.skip-link:focus { transform: none; }
+
+/* Keep content readable with selected preferences, larger text and user spacing. */
+.step-list { display: flex; flex-wrap: wrap; row-gap: 8px; }
+.step-list li { flex: 0 0 auto; }
+.task-hint { overflow-wrap: anywhere; }
+.pref-details > summary { flex-wrap: wrap; }
+.pref-details .optional-count { flex: 1 1 100%; min-width: 0; white-space: normal; overflow-wrap: anywhere; text-align: left; }
+.task-text { grid-template-columns: minmax(0, 1fr); }

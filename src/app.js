@@ -269,7 +269,7 @@ function home() {
   const description = state.details.taskDescription || '';
   const warnings = descriptionWarnings(description);
   const length = description.trim().length;
-  return `${header()}<main class="content" id="main">
+  return `${header()}<main class="content" id="main" tabindex="-1">
     <h1 class="screen-title" tabindex="-1" data-fk="screen-title">What are you working on?</h1>
     ${engineControls()}
     <section class="surface example-panel" aria-labelledby="example-heading">
@@ -302,7 +302,7 @@ function home() {
 
 function promptInput() {
   const task = taskById(state.taskId);
-  return `${header()}<main class="content" id="main">
+  return `${header()}<main class="content" id="main" tabindex="-1">
     <h1 class="screen-title" tabindex="-1" data-fk="screen-title">Improve your prompt</h1>
     <p class="support-text">${engine === 'openai' ? 'OpenAI mode: analysing sends this prompt to OpenAI using the seven criteria. AI findings need your review.' : 'Local rules mode: checks run in your browser without AI.'}</p>
     ${requiredNote}
@@ -339,7 +339,7 @@ function analysisScreen() {
   const wide = desktop.matches;
   const review = result.criteria.filter(row => row.status === 'Missing' || row.status === 'Partial');
   const allOpen = result.criteria.every(row => state.expanded.has(row.key));
-  return `${header()}<main class="content" id="main">
+  return `${header()}<main class="content" id="main" tabindex="-1">
     <h1 class="screen-title" tabindex="-1" data-fk="screen-title">Prompt Analysis</h1>
     <div class="analysis-layout">
       <section class="analysis-aside" aria-labelledby="original-heading">
@@ -518,7 +518,7 @@ function personalisationScreen() {
   const fields = state.analysis.fields;
   const otherFormat = state.preferences.format === 'Other';
   const task = taskById(state.taskId);
-  return `${header()}<main class="content" id="main">
+  return `${header()}<main class="content" id="main" tabindex="-1">
     <h1 class="screen-title" tabindex="-1" data-fk="screen-title">Prompt Personalisation</h1>
     <p class="intro">Add what you know for ${esc(task?.label || 'this task')}. Everything here is optional unless marked <span class="req" aria-hidden="true">*</span><span class="sr-only">required</span>; leave unknown information blank and PromptWise will not invent it.</p>
     <details class="review-box">
@@ -576,7 +576,7 @@ function usedDetails(input) {
 }
 
 function compareScreen() {
-  const head = `${header()}<main class="content" id="main"><h1 class="screen-title" tabindex="-1" data-fk="screen-title">Compare the prompts</h1>`;
+  const head = `${header()}<main class="content" id="main" tabindex="-1"><h1 class="screen-title" tabindex="-1" data-fk="screen-title">Compare the prompts</h1>`;
   if (state.generating) {
     return `${head}<div class="loading-panel" role="status"><span class="spinner" aria-hidden="true"></span>${engine === 'openai' ? 'Rewriting your prompt…' : 'Assembling your draft…'}</div></main>`;
   }
@@ -626,7 +626,12 @@ const ABOUT_STEPS = [
   ['Add useful details', 'supply relevant context, material or preferences.'],
   ['Compare and edit', 'review the revised prompt and copy your chosen version.']
 ];
-const TEAM = ['Luu Quoc Thai Tran', 'Noah Holt', 'Angela Liu'];
+// Responsibilities supplied by the team; these do not certify completion of planned tests.
+const TEAM = [
+  { name: 'Luu Quoc Thai Tran', role: 'Application development & technical integration', responsibilities: 'System architecture, prompt-framework implementation, application development, AI/API integration, evaluation planning and overall project integration.' },
+  { name: 'Noah Holt', role: 'Prompt engineering research', responsibilities: 'GenAI in higher education, prompt-engineering principles and prompt quality, existing-tool research, test prompts/use cases and related literature review contributions.' },
+  { name: 'Angela Liu', role: 'UX & student learning', responsibilities: 'Student use of GenAI and AI-assisted learning, user requirements, mobile UI and user flows, wireframes and usability-test planning.' }
+];
 
 function aboutPage() {
   return `<header class="page-head about-head">
@@ -635,7 +640,7 @@ function aboutPage() {
       <p class="brand brand-small">PromptWise</p>
     </div>
   </header>
-  <main class="content about" id="main">
+  <main class="content about" id="main" tabindex="-1">
     <h1 class="screen-title" tabindex="-1" data-fk="screen-title">About PromptWise</h1>
     <p class="about-lead">A student prompt coach, developed for the UTS Information Systems Capstone.</p>
     <p class="about-text">PromptWise helps university students turn an initial idea into a clearer, better-scoped prompt before using a generative AI tool. It highlights missing or unclear details, explains why they matter, and helps students prepare a revised prompt they can review, edit and copy.</p>
@@ -653,8 +658,9 @@ function aboutPage() {
       <p>Local rules mode checks wording and assembles a draft in the browser without AI. When configured for local testing, OpenAI mode analyses and rewrites prompts using the same seven criteria. You choose the mode before starting, and each result identifies its mode. AI findings can be wrong. Only an explicit Analyse or Create action sends the selected text to OpenAI, after you agree. Original files and images are not uploaded. The final prompt is still copied manually.</p>
     </section>
     <section class="about-section" aria-labelledby="about-team">
-      <h2 id="about-team">Meet the team</h2>
-      <ul class="team-grid">${TEAM.map(name => `<li class="surface team-card"><p class="team-name">${name}</p><p>PromptWise project team</p></li>`).join('')}</ul>
+      <h2 id="about-team">Team &amp; responsibilities</h2>
+      <ul class="team-grid">${TEAM.map(member => `<li class="surface team-card"><h3 class="team-name">${esc(member.name)}</h3><p class="team-role">${esc(member.role)}</p><p>${esc(member.responsibilities)}</p></li>`).join('')}</ul>
+      <p><strong>Shared work:</strong> We carried out the Design Thinking process together. Existing-tool review is shared, with Noah focusing on prompt engineering research. All three team members contribute to testing, meetings, presentations, discussion and conclusions, and final-report review.</p>
       <p>Developed as part of <strong>41195 Information Systems Capstone</strong> at the <strong>University of Technology Sydney</strong>, 2026.</p>
     </section>
     <section class="surface about-section" aria-labelledby="about-supervision">
@@ -709,7 +715,7 @@ function render({ enter = '' } = {}) {
     if ((state.screen === 2 || state.screen === 3) && !state.analysis) state.screen = 1;
     body = SCREENS[state.screen]();
   }
-  app.innerHTML = `<div class="app-shell ${state.page === 'about' ? 'page-about' : `screen-${state.screen}`}">${body}${siteFooter()}</div>`;
+  app.innerHTML = `<a class="skip-link" href="#main" data-skip-main data-fk="skip-main">Skip to main content</a><div class="app-shell ${state.page === 'about' ? 'page-about' : `screen-${state.screen}`}">${body}${siteFooter()}</div>`;
   autosizeAll();
   // Only the incoming screen moves, so there is never a second live copy of a form.
   if (enter) app.querySelector('main')?.classList.add(`enter-${enter}`);
@@ -1290,6 +1296,11 @@ function fileAction(action, key) {
 // ---------- Events ----------
 
 app.addEventListener('click', event => {
+  if (event.target.closest('[data-skip-main]')) {
+    event.preventDefault();
+    app.querySelector('#main')?.focus();
+    return;
+  }
   const navLink = event.target.closest('[data-nav]');
   if (navLink) {
     // Modified clicks open the page in a new tab as normal links.

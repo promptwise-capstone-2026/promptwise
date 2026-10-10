@@ -109,3 +109,21 @@ passes 48/48; focused Chromium checks covered a full deck, six-task coverage,
 mode/consent preservation, keyboard activation, replacement cancellation, normal
 workflow, responsive Home at 320/375/1440px and offline reload. No paid calls.
 Independent AI-quality evaluation remains separate from these demonstration cases.
+
+### Team attribution and accessibility review — 10 October 2026
+
+User supplied the initial member allocation and confirmed shared Design Thinking.
+About now explicitly credits Thai with application development and technical
+integration, Noah with prompt engineering research, and Angela with UX/student
+learning. The report names all three for Existing Tools and Methodology, and
+assigns GenAI in Higher Education to Noah; the copy preserves these links.
+Responsibility descriptions are not claims that every planned test is completed.
+The supplied report's Appendix B remains a contribution-table template; actual
+contributions and AI assistance need evidence there. Photos have not yet arrived.
+
+Scoped WCAG 2.2 AA review: 33 axe-core states with zero detected violations,
+keyboard workflow and 16 layout/resize/spacing states checked; 48 local tests
+pass. Added skip navigation and fixed preference-summary, enlarged-step and
+text-spacing/task-card clipping. Cache v9. No formal conformance claim; VoiceOver,
+other browsers, real zoom/devices and disabled-user review remain outstanding.
+See docs/ACCESSIBILITY_REVIEW.md. Broad desktop UX changes await the user's feedback.
