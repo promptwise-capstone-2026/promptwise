@@ -47,3 +47,11 @@
 - The frontend consumes shared preference labels, validation-field stages/order, file-purpose/accept/limit descriptors, mode labels and analysis fingerprints. Cache version is `promptwise-v3`.
 - Independent verification: 31 Node tests pass; all six branches complete the five screens at 320, 375 and 1440 px; edited copy, saved diagnosis, source-file append/choice handling and conditional format errors pass. Offline refresh and local analysis pass. See `docs/INTEGRATION_REVIEW.md` for evidence and remaining limits.
 - Claude's three UX choices (preferences retained on task change, restart confirmation for an edited uncopied draft, and a single-line Others description) remain provisional team choices. Internal AI integration and cancellation support are the next backend milestone; no API calls or report edits were made in this review.
+
+## User feedback and next frontend brief on 10 October 2026
+
+- The user requested clearer future AI wording, broader academic-file support, review of personalisation optionality, sentence fields that wrap/grow, clearer visual grouping, vertical transitions, clickable validated step navigation, and an About/credits page relaying Amara's recommendation.
+- `docs/UX_REFINEMENT_HANDOFF.md` prepares the next Claude milestone. Keep the current UI design, refine reusable section surfaces, preserve optional personalisation except conditional Other format, allow navigation to completed valid steps and honour reduced motion. The single-line Others input is proposed to become a growing textarea in response to this feedback.
+- `docs/ABOUT_CONTENT.md` contains drafted public copy using confirmed names: Luu Quoc Thai Tran, Noah Holt, Angela Liu and Dr Amara Atif. About is an auxiliary page, not a sixth prompt stage. Individual contribution claims, private contact details and unavailable CV/profile links are omitted.
+- `docs/ATTACHMENT_PLAN.md` recommends PDF/DOCX/PPTX next, visual context with the AI route, and video later. Current TXT/MD handling remains truthful; broader parsing is not implemented by this planning milestone.
+- Current app code remains at the `f3a6acb` implementation. These are handoff documents and proposed design decisions, not completed UI or API features. The original report/contract remain unchanged; publication and paid API use are outside this milestone.

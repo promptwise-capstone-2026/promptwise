@@ -43,9 +43,9 @@ methodology; this local note does not amend a submitted document.
 ## Current implementation versus planned implementation
 
 - Current: a local rules engine and assembled draft, with task/form validation,
-  guidance helpers and in-memory TXT/MD reading. No OpenAI calls or AI rewrite
-  have been implemented. Frontend wiring of the new helpers remains a separate
-  milestone.
+  guidance helpers and in-memory TXT/MD reading. The five-screen frontend is
+  wired and reviewed at implementation commit `f3a6acb`. No OpenAI calls or AI
+  rewrite have been implemented.
 - Planned: genuine internal AI analysis and rewriting through a backend, with
   server-side credentials, validated responses, clear loading/failure states
   and an editable result. The interface must identify which mode produced a
@@ -56,6 +56,9 @@ methodology; this local note does not amend a submitted document.
   prompt content is sent to the API.
 - Still undecided research choice: Copilot-only downstream evaluation versus a
   small comparison of tools. Internal API support does not settle that choice.
+- The 10 October attachment proposal and next frontend brief are documented in
+  `ATTACHMENT_PLAN.md` and `UX_REFINEMENT_HANDOFF.md`. They describe proposed
+  work, not completed capabilities or revised submitted-report requirements.
 
 ## Work that demonstrates the project's contribution
 
