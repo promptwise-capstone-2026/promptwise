@@ -319,6 +319,8 @@ select.text-field { appearance: none; padding-right: 40px; background-image: lin
 .file-icon { width: 14px; height: 17px; border: 2px solid currentColor; border-radius: 2px 6px 2px 2px; position: relative; }
 .file-icon::after { content: ""; position: absolute; left: 2px; right: 2px; top: 5px; height: 2px; background: currentColor; box-shadow: 0 4px 0 currentColor; }
 .file-note { font-size: .82rem; color: var(--muted); line-height: 1.45; }
+.materials-note { margin: -4px 0 16px; padding: 10px 12px; border-radius: var(--radius-sm); background: var(--surface); border: 1px solid var(--line); font-size: .86rem; }
+.file-note strong { color: var(--ink-2); font-weight: 650; }
 .file-status { display: grid; gap: 8px; }
 .file-status:empty { display: none; }
 .file-line { font-size: .9rem; line-height: 1.45; display: flex; align-items: flex-start; gap: 8px; }

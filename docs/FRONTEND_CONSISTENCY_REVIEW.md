@@ -162,3 +162,32 @@ Added the user-supplied `thai.jpeg` and `amara-atif.jpeg` portraits to About & t
 Only the two supplied image URLs were added to the server's explicit allowlist, with JPEG MIME handling, and service-worker assets; cache is `promptwise-v18`. Existing server tests now cover JPEG MIME and rejection of unlisted team paths. `npm test`: 56/56 passed. `git diff --check`: clean.
 
 Isolated Chromium verification: photos load, matching avatar dimensions and NH/AL placeholders at 320, 375, 768 and 1440 px; no horizontal overflow, including 200% root-font resizing. Screenshots at 375 and 1440 inspected. About axe A/AA scan: zero violations (not a conformance claim). Both portraits load after an offline refresh; Return to prompt works. No user browser data or paid API calls were used. Safari/manual screen-reader verification remains pending.
+
+## Shorter attachment guidance and earlier task choice — 10 October 2026
+
+User-requested refinements from the earlier optional recommendations. No backend, API, storage or shared-module logic changed.
+
+- **Materials:** the common format/privacy note ("PDF, DOCX and PPTX up to 10 MB; TXT/MD up to 1 MB. Read in this browser only…", plus "Add further files one at a time…") appears once at the top of each Materials group. The text is derived from the shared `field.material.supportNote` that most fields use, not hard-coded. Each field keeps its own purpose line. A field whose rules differ keeps its restriction in bold: the code field shows "UTF-8 TXT/MD up to 1 MB. Read in this browser only." and its picker still accepts only TXT/MD. File buttons and extracted-text previews are described by both the field note and the shared note (`materials-file-note`), including after an error is dismissed.
+- **Home:** the optional Save history control, its privacy explanation, History link and any storage error moved below the task cards and Others description. Saved-session recovery stays at the top; the example panel stays above the tasks. Behaviour is unchanged.
+- Cache bumped to `promptwise-v19`.
+
+### Verification
+
+- `npm test`: 56/56 passed. `git diff --check`: clean.
+- **Focused isolated Chromium checks at 320, 375 and 1440 px: 55/55 passed.**
+  - **Home:** History option after the task cards with the privacy text present. No overflow, duplicate ids or broken references; axe A/AA found zero violations at 375 and 1440.
+  - **Keyboard order:** task choice, then the History option, then Continue. Space turns saving on with focus kept; Enter on the History link opens History. Turning saving off still asks for confirmation.
+  - **Personalise, all six tasks:** exactly one shared note, every field's purpose kept, no repeated format text in field notes, and the code restriction shown. No overflow or broken references; zero axe violations for Study and Coding at 375 and 1440.
+  - **Code field:** rejects DOCX with a TXT/MD message and accepts MD.
+  - **DOCX preview:** described by both notes. No console errors.
+- **Before/after measurements against an extracted copy of `96e16a6`** (Personalise with all disclosures open):
+
+  | Width | Home task cards start | Study Personalise | Coding Personalise |
+  | --- | --- | --- | --- |
+  | 320 px | 914 → 692 px | 4661 → 4608 px | 4735 → 4643 px |
+  | 375 px | 809 → 652 px | 4292 → 4275 px | 4452 → 4416 px |
+  | 1440 px | 790 → 674 px | 2462 → 2420 px | 2606 → 2564 px |
+
+  The Personalise saving is modest because each page has only two or three file fields.
+- Screenshots inspected: Home at 375 px; Coding Personalise at 375 and 1440 px.
+- No paid API calls, no actual user data and no push. Safari, real devices and screen readers remain manual checks.

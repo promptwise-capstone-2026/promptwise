@@ -418,7 +418,6 @@ function home() {
   return `${header()}<main class="content" id="main" tabindex="-1">
     <h1 class="screen-title" tabindex="-1" data-fk="screen-title">What are you working on?</h1>
     ${engineControls()}
-    ${historyControls({enabled:practiceStore.enabled,error:storageProblem(),count:practiceStore.read().records.length,compact:true})}
     ${recoveryPanel()}
     <section class="surface example-panel" aria-labelledby="example-heading">
       <h2 id="example-heading">Explore with an example</h2>
@@ -442,6 +441,7 @@ function home() {
       <p class="field-warning" id="task-description-warning"${warnings.length ? '' : ' hidden'}>${esc(warnings.join(' '))}</p>
     </div>
     <p class="support-text">Choose the task that best fits your goal. You can add details after the analysis.</p>
+    ${historyControls({enabled:practiceStore.enabled,error:storageProblem(),count:practiceStore.read().records.length,compact:true})}
     ${alertBox()}
   </main>${footer('continue', 'Continue')}`;
 }
@@ -526,6 +526,14 @@ function excludedNote() {
   return `<div class="notice notice-info"><p>Kept but not used for this prompt: <strong>${hidden.map(esc).join(', ')}</strong>. The current analysis does not ask for ${hidden.length > 1 ? 'these details' : 'this detail'}. Change your prompt to include ${hidden.length > 1 ? 'them' : 'it'} again.</p></div>`;
 }
 
+const ADD_FILES_NOTE = 'Add further files one at a time and choose Add below current text.';
+// The format/privacy note most material fields share; a field whose rules differ (code: TXT/MD only) keeps its own.
+function sharedMaterialNote(fields = state.analysis?.fields || []) {
+  const counts = new Map();
+  for (const field of fields) if (field.material) counts.set(field.material.supportNote, (counts.get(field.material.supportNote) || 0) + 1);
+  return [...counts].sort((a, b) => b[1] - a[1])[0]?.[0] || '';
+}
+
 function fileControl(field) {
   const id = `detail-${field.key}`;
   const key = field.key;
@@ -537,7 +545,7 @@ function fileControl(field) {
       <div class="file-actions"><button type="button" class="ghost-button small" data-file-action="stop" data-field="${key}" data-fk="file-stop-${key}">Cancel reading${forField}</button></div></div>`;
   } else if (file?.status === 'pending') {
     status = `<div class="file-choice"><p class="file-line"><span><strong>${esc(file.name)}</strong> (${formatSize(file.size)}) is ready.${clean(state.details[key]) ? ' This field already has text.' : ''}</span></p>
-      ${file.reviewRequired ? `<label class="field-label" for="preview-${key}">Review extracted text — keep the relevant passages</label><textarea class="text-field material-preview" id="preview-${key}" data-material-preview="${key}" spellcheck="false" aria-describedby="detail-${key}-file-note">${esc(file.text)}</textarea>` : ''}
+      ${file.reviewRequired ? `<label class="field-label" for="preview-${key}">Review extracted text — keep the relevant passages</label><textarea class="text-field material-preview" id="preview-${key}" data-material-preview="${key}" spellcheck="false" aria-describedby="detail-${key}-file-note materials-file-note">${esc(file.text)}</textarea>` : ''}
       <div class="file-actions">
         <button type="button" class="secondary-button small" data-file-action="replace" data-field="${key}" data-fk="file-replace-${key}">${clean(state.details[key]) ? 'Replace current text' : 'Use this text'}${forField}</button>
         ${clean(state.details[key]) ? `<button type="button" class="secondary-button small" data-file-action="append" data-field="${key}" data-fk="file-append-${key}">Add below current text${forField}</button>` : ''}
@@ -552,8 +560,8 @@ function fileControl(field) {
   const error = problem ? `<div class="file-error" id="${id}-file-error"><p>${esc(problem)}</p>${file.error && !['reading', 'pending'].includes(file.status) ? `<button type="button" class="ghost-button small" data-file-action="dismiss" data-field="${key}" data-fk="file-dismiss-${key}">Dismiss${forField}</button>` : ''}</div>` : '';
   return `<div class="file-control">
     <input type="file" class="file-input" id="${id}-file" data-file-input="${key}" accept="${esc(field.material.accept)}" tabindex="-1" aria-hidden="true">
-    <button type="button" class="file-button" data-file-pick="${key}" data-fk="file-pick-${key}"${describedBy(`${id}-file-note`, problem ? `${id}-file-error` : '')}><span class="file-icon" aria-hidden="true"></span>${esc(field.material.buttonLabel)}<span class="sr-only"> for ${esc(field.label)}</span></button>
-    <p class="file-note" id="${id}-file-note">${esc(field.material.purpose)} ${esc(field.material.supportNote)} Add further files one at a time and choose Add below current text.</p>
+    <button type="button" class="file-button" data-file-pick="${key}" data-fk="file-pick-${key}"${describedBy(`${id}-file-note`, 'materials-file-note', problem ? `${id}-file-error` : '')}><span class="file-icon" aria-hidden="true"></span>${esc(field.material.buttonLabel)}<span class="sr-only"> for ${esc(field.label)}</span></button>
+    <p class="file-note" id="${id}-file-note">${esc(field.material.purpose)}${field.material.supportNote !== sharedMaterialNote() ? ` <strong>${esc(field.material.supportNote)}</strong>` : ''}</p>
     ${warnings.length ? `<details class="mode-details"><summary data-fk="file-notes-${key}">Extraction limits and copying files<span class="sr-only"> for ${esc(field.label)}</span></summary><ul class="file-warnings">${warnings.map(item => `<li>${esc(item)}</li>`).join('')}</ul></details>` : ''}
     <div class="file-status">${status}${error}</div>
   </div>`;
@@ -613,7 +621,7 @@ function choiceGroup(key, label, options, help) {
   </fieldset>`;
 }
 
-function fieldGroup(id, title, help, fields) {
+function fieldGroup(id, title, help, fields, note = '') {
   if (!fields.length) return '';
   const recommended = fields.filter(field => field.priority === 'recommended' || field.alwaysVisible);
   const optional = fields.filter(field => field.priority !== 'recommended' && !field.alwaysVisible);
@@ -621,6 +629,7 @@ function fieldGroup(id, title, help, fields) {
   return `<section class="surface form-group" aria-labelledby="${id}-heading">
     <h2 id="${id}-heading">${title}</h2>
     <p class="section-help">${help}</p>
+    ${note}
     ${recommended.length ? `<div class="form-stack">${recommended.map(detailField).join('')}</div>` : ''}
     ${optional.length ? `<details class="optional-group" data-group="${id}"${open ? ' open' : ''}>
       <summary data-fk="${id}-optional"><span class="optional-title">${recommended.length ? 'More optional details' : 'Optional details'}</span><span class="optional-count" data-count="${id}">${countText(optional)}</span></summary>
@@ -673,7 +682,7 @@ function personalisationScreen() {
     <div class="personalise-layout">
       <div class="detail-column">
         ${fieldGroup('task-details', 'Task details', 'Recommended items relate to criteria flagged in the analysis.', fields.filter(field => !field.material))}
-        ${fieldGroup('materials', 'Materials and requirements', 'Paste text or add PDF, DOCX, PPTX, TXT or MD files. Keep the relevant passages, and name the page, slide or section in your question. Materials are optional when your request does not depend on them.', fields.filter(field => field.material))}
+        ${fieldGroup('materials', 'Materials and requirements', 'Paste text or add a file. Keep the relevant passages, and name the page, slide or section in your question. Materials are optional when your request does not depend on them.', fields.filter(field => field.material), `<p class="file-note materials-note" id="materials-file-note"><strong>Files:</strong> ${esc(sharedMaterialNote())} ${ADD_FILES_NOTE}</p>`)}
       </div>
       ${preferencesGroup(otherFormat)}
     </div>
@@ -1597,7 +1606,7 @@ app.addEventListener('input', event => {
       file.text = target.value;
       file.error = '';
       document.getElementById(`detail-${target.dataset.materialPreview}-file-error`)?.remove();
-      app.querySelector(`[data-file-pick="${CSS.escape(target.dataset.materialPreview)}"]`)?.setAttribute('aria-describedby', `detail-${target.dataset.materialPreview}-file-note`);
+      app.querySelector(`[data-file-pick="${CSS.escape(target.dataset.materialPreview)}"]`)?.setAttribute('aria-describedby', `detail-${target.dataset.materialPreview}-file-note materials-file-note`);
     }
   } else if (target.matches('[data-detail]')) {
     const key = target.dataset.detail;
@@ -1626,7 +1635,7 @@ app.addEventListener('input', event => {
       else state.files[key] = { ...file, error: '', notice: '' };
       document.getElementById(`detail-${key}-file-error`)?.remove();
       const pick = app.querySelector(`[data-file-pick="${CSS.escape(key)}"]`);
-      if (pick) pick.setAttribute('aria-describedby', `detail-${key}-file-note`);
+      if (pick) pick.setAttribute('aria-describedby', `detail-${key}-file-note materials-file-note`);
     }
     // A pending choice no longer has existing text to replace or extend, so show the simpler message.
     if (state.files[key]?.status === 'pending' && !target.value.trim() && state.files[key].hadText !== false) {
