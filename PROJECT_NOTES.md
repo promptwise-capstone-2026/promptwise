@@ -155,3 +155,25 @@ supports reflective guidance. docs/LEARNING_DASHBOARD_PROPOSAL.md proposes a
 limited opt-in device-only version before accounts, with supportive task-aware
 patterns, separate evaluation modes and examples excluded from progress. This is
 not implemented or an agreed scope change; team/supervisor discussion remains.
+
+
+### Local learning profile extension — 10 October 2026
+
+The user now explicitly authorises development of a single demo profile, saved
+history and a learning dashboard while preserving the core workflow. This
+supersedes the earlier proposed-only development status. The report still excludes
+long-term history/analytics; no supervisor approval for this extension has been
+received and the private report/contract were not altered.
+
+Implemented optional browser-only saving, explicit refresh recovery, saved original
+evaluations and separate generated/edited prompt copies, supportive dashboard
+patterns, task/mode/model/framework groups, example exclusion, JSON export,
+delete-one and clear-all controls. No authentication, cloud database or account
+sync. Current-session recovery can contain accepted source text; original file
+bytes and pending choices are excluded. No background or extra AI calls for
+history or metrics. Schema/size validation, escaping, storage-failure handling and
+observed cross-tab conflict detection preserve the core workflow. New modules are
+allowlisted and cached under promptwise-v12.
+
+See docs/LEARNING_PRACTICE_REVIEW.md for verified coverage, privacy details and
+remaining work. Nothing was pushed or published during this milestone.

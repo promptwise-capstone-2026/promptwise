@@ -31,3 +31,6 @@ Thumbs.db
 
 # Reproducible local document parser bundles
 public/vendor/
+
+# Exported local learning history may contain private prompt/source text
+promptwise-saved-work-*.json

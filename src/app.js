@@ -1,3 +1,6 @@
+import { createPracticeStore, FRAMEWORK_VERSION, PRACTICE_KEY } from './practice.js';
+import { profileControls, renderPractice } from './practice-view.js';
+import { getPersonalisationFields } from './guidance.js';
 import { createExamplePicker, EXAMPLES } from './examples.js';
 import { getAIConfiguration, runAI } from './ai-client.js';
 import { TASKS, FORMATS, LEVELS, TONES, DEPTHS, PREFERENCE_LABELS, getDetailLabel } from './tasks.js';
@@ -22,6 +25,7 @@ const GROW_MAX_LINES = 8;
 
 const blankState = () => ({
   page: 'workflow',
+  attemptId: '', attemptFingerprint: '', attemptCreatedAt: '', recordSuppressed: false, recoveryNotice: '',
   screen: 0,
   // Progress milestones: what was established by an explicit action, keyed to the inputs it used.
   continuedKey: '',
@@ -53,6 +57,18 @@ const blankState = () => ({
 });
 
 let state = blankState();
+let storage;
+try { storage = window.localStorage; }
+catch { storage = {getItem(){throw new Error('Unavailable');},setItem(){throw new Error('Unavailable');},removeItem(){throw new Error('Unavailable');}}; }
+const practiceStore = createPracticeStore(storage);
+let recoveryCandidate = practiceStore.read().current;
+let recoveryPending = Boolean(recoveryCandidate);
+let savingPaused = false;
+let saveTimer = 0;
+let savedCurrent = false;
+let lastSaveError = '';
+let practiceView = 'dashboard', selectedRecord = '', practiceTask = '', practiceCohort = '';
+const freshId = () => crypto.randomUUID();
 const pickExample = createExamplePicker();
 let engine = 'local-rules';
 let aiConfig = { aiAvailable: false };
@@ -71,10 +87,10 @@ async function runWorkflow(operation, input) {
   finally { workflowRequests.delete(controller); }
 }
 function engineControls() {
-  if (!aiConfig.aiAvailable) return '';
+  if (!aiConfig.aiAvailable && engine !== 'openai') return '';
   return `<section class="surface engine-controls" aria-labelledby="engine-label">
     <label class="field-label" id="engine-label" for="engine">Review mode</label>
-    <select class="text-field" id="engine" data-engine><option value="local-rules"${engine === 'local-rules' ? ' selected' : ''}>Local rules — no AI</option><option value="openai"${engine === 'openai' ? ' selected' : ''}>OpenAI — analyse and rewrite</option></select>
+    <select class="text-field" id="engine" data-engine><option value="local-rules"${engine === 'local-rules' ? ' selected' : ''}>Local rules — no AI</option><option value="openai"${engine === 'openai' ? ' selected' : ''}${aiConfig.aiAvailable ? '' : ' disabled'}>OpenAI — analyse and rewrite${aiConfig.aiAvailable ? '' : ' (unavailable)'}</option></select>
     ${engine === 'openai' ? `<p class="field-help">Analyse sends your original prompt and custom task description to OpenAI. Create sends your prompt, details, preferences and accepted source text. Original files and images are not uploaded. AI can make mistakes. Local testing model: ${esc(aiConfig.model)}.</p><label><input type="checkbox" data-ai-consent${aiConsent ? ' checked' : ''}> I agree to send this text to OpenAI when I select Analyse or Create.</label><p class="field-help">Avoid confidential information. Requests use store: false; provider retention rules still apply. <a href="https://developers.openai.com/api/docs/guides/your-data" target="_blank" rel="noopener noreferrer">OpenAI data controls</a></p>` : '<p class="field-help">Checks and draft assembly stay in this browser.</p>'}
   </section>`;
 }
@@ -101,7 +117,7 @@ function announce(message) {
   window.setTimeout(() => { announcer.textContent = message; }, 30);
 }
 
-// Current sessions are in memory only; copying a draft does not save the analysis or inputs.
+// Without opt-in saving, sessions live only in memory. Copying alone is not persistence.
 function hasSessionProgress() {
   return Boolean(state.taskId || clean(state.original) || state.analysis || state.draft
     || state.analysing || state.generating || Object.keys(state.files).length
@@ -110,7 +126,8 @@ function hasSessionProgress() {
 }
 let unloadWarningAttached = false;
 function warnBeforeUnload(event) {
-  if (!hasSessionProgress()) return;
+  persistPractice();
+  if (!hasSessionProgress() || (savedCurrent && !state.analysing && !state.generating && !Object.values(state.files).some(f => f.status === 'reading' || f.status === 'pending'))) return;
   event.preventDefault();
   event.returnValue = true; // Legacy support; the browser chooses the dialog text.
 }
@@ -120,6 +137,118 @@ function syncUnloadWarning() {
   if (needed) window.addEventListener('beforeunload', warnBeforeUnload);
   else window.removeEventListener('beforeunload', warnBeforeUnload);
   unloadWarningAttached = needed;
+}
+
+// ---------- Single local demo profile ----------
+function savedAnalysis(result) {
+  return {mode: result.mode, model: result.model || '', frameworkVersion: result.frameworkVersion || FRAMEWORK_VERSION,
+    inputFingerprint: result.inputFingerprint, criteria: result.criteria, warnings: result.warnings || []};
+}
+function snapshotOfSession() {
+  if (!hasSessionProgress() || state.recordSuppressed) return null;
+  const valid = analysisValid();
+  const draft = valid && state.draft?.analysisKey === state.analysisKey ? state.draft : null;
+  return {input:{taskId:state.taskId,original:state.original,details:state.details,preferences:state.preferences},engine,
+    screen:Math.max(0,state.screen),continued:state.continuedKey===taskKey(),personalised:valid&&state.personalisedKey===state.analysisKey,
+    analysis:valid?savedAnalysis(state.analysis):null,draft,improved:draft?state.improved:'',attemptId:state.attemptId,
+    attemptFingerprint:state.attemptFingerprint,example:Boolean(state.example),savedAt:new Date().toISOString(),materialNotice:Object.keys(state.files).length>0};
+}
+function historyEntry() {
+  if (!analysisValid() || !state.attemptId || state.recordSuppressed) return null;
+  const old = practiceStore.read().records.find(r=>r.id===state.attemptId);
+  const rewrite = state.draft?.analysisKey===state.analysisKey ? {mode:state.draft.mode,model:state.draft.model||'',generated:state.draft.improvedPrompt,edited:state.improved,warnings:state.draft.warnings||[]} : null;
+  const entry = {id:state.attemptId,createdAt:old?.createdAt||state.attemptCreatedAt||new Date().toISOString(),updatedAt:new Date().toISOString(),
+    taskId:state.taskId,taskDescription:state.taskId==='other'?state.details.taskDescription||'':'',original:state.original,
+    example:Boolean(state.example),analysis:savedAnalysis(state.analysis),rewrite};
+  if(old && JSON.stringify({...old,updatedAt:''})===JSON.stringify({...entry,updatedAt:''}))entry.updatedAt=old.updatedAt;
+  return entry;
+}
+function storageProblem() {return savingPaused?'Saved work changed in another tab. Reload before saving here. Your open prompt is unchanged; copy it before reloading.':practiceStore.error;}
+function updateSaveStatus() {
+  const problem = storageProblem() || (state.recordSuppressed && hasSessionProgress() ? 'This open attempt is not being saved. Start another prompt to save new work.' : '');
+  const count = practiceStore.read().records.length;
+  const status = app.querySelector('#practice-save-status');
+  if(status)status.textContent=problem || (practiceStore.enabled?`Local saving on · ${count} of 50 attempts saved. Browser data can be cleared; export anything important.`:'Saving off. Work stays in this tab until you leave or refresh.');
+  const note = app.querySelector('.session-note');
+  if(note)note.textContent=problem?'Local saving needs attention. Copy important work before leaving.':practiceStore.enabled?'Demo profile: saved locally in this browser. Pending file work is not recovered; export important work.':'Progress stays in this tab only. Refreshing or starting again clears it.';
+  if(problem && problem!==lastSaveError)announce(problem);
+  lastSaveError=problem;
+}
+function persistPractice() {
+  clearTimeout(saveTimer);
+  savedCurrent=false;
+  if(!practiceStore.enabled || recoveryPending || savingPaused){updateSaveStatus();return false;}
+  let snapshot=snapshotOfSession();
+  const previous=practiceStore.read().current;
+  if(snapshot && previous && JSON.stringify({...snapshot,savedAt:''})===JSON.stringify({...previous,savedAt:''}))snapshot.savedAt=previous.savedAt;
+  const ok=practiceStore.save(snapshot,historyEntry());
+  savedCurrent=ok&&Boolean(snapshot);
+  updateSaveStatus();
+  return ok;
+}
+function schedulePracticeSave(){clearTimeout(saveTimer);saveTimer=setTimeout(persistPractice,250);}
+function recoveryPanel() {
+  if(!recoveryPending || !recoveryCandidate)return '';
+  return `<section class="surface recovery-panel" aria-labelledby="recovery-heading"><h2 id="recovery-heading">Your last session is ready to resume</h2><p>Saved ${esc(new Date(recoveryCandidate.savedAt).toLocaleString())}. Resume without another AI request, or start fresh. Saved attempts stay in History.</p><div class="confirm-actions"><button class="secondary-button" type="button" data-action="resume-practice">Resume saved work</button><button class="ghost-button" type="button" data-action="discard-recovery">Start fresh</button></div></section>`;
+}
+function discardRecoveryForNewWork() {
+  if(!recoveryPending)return true;
+  if(!window.confirm('Start fresh? The saved unfinished session will be replaced. Saved history entries are kept.'))return false;
+  recoveryPending=false;recoveryCandidate=null;
+  if(practiceStore.enabled&&!savingPaused)practiceStore.save(null);
+  return true;
+}
+function resumePractice() {
+  const saved=recoveryCandidate;
+  if(!saved)return;
+  stopMaterialReads();stopWorkflowRequests();epoch++;analysisSeq++;generateSeq++;
+  state=blankState();state.taskId=saved.input.taskId;state.original=saved.input.original;state.details=saved.input.details;state.preferences=saved.input.preferences;
+  engine=saved.engine;aiConsent=false;
+  state.attemptId=saved.attemptId;state.attemptFingerprint=saved.attemptFingerprint;
+  state.attemptCreatedAt=practiceStore.read().records.find(r=>r.id===saved.attemptId)?.createdAt||saved.savedAt;
+  if(saved.example)state.example={id:'restored-example',title:'Restored practice example',inputKey:exampleInputKey()};
+  if(saved.continued&&taskReady())state.continuedKey=taskKey();
+  if(saved.analysis){state.analysis={...saved.analysis,fields:getPersonalisationFields(analysisInput(),saved.analysis.criteria)};state.analysisKey=saved.analysis.inputFingerprint;state.expanded=new Set(desktop.matches?saved.analysis.criteria.map(r=>r.key):[]);}
+  if(saved.personalised&&analysisValid())state.personalisedKey=state.analysisKey;
+  if(saved.draft&&saved.draft.analysisKey===state.analysisKey){state.draft=saved.draft;state.improved=saved.improved;}
+  recoveryPending=false;recoveryCandidate=null;newSession();
+  navigate(allowedScreen(saved.screen),{replace:true});
+  state.recoveryNotice='Saved text and results restored. File attachments and pending file choices were not restored. Reattach them if needed. No AI request was resumed; any new AI request needs your agreement again.';
+  render();announce(state.recoveryNotice);
+}
+function practicePage() {
+  const result=renderPractice({data:practiceStore.read(),enabled:practiceStore.enabled,error:storageProblem(),view:practiceView,selectedId:selectedRecord,taskFilter:practiceTask,cohortFilter:practiceCohort});
+  practiceTask=result.taskId;practiceCohort=result.cohort;return result.html;
+}
+function clearPractice() {
+  if(!window.confirm('Remove all saved work on this device and turn saving off? This cannot be undone. Your open prompt stays in this tab.'))return;
+  if(practiceStore.clear()){savingPaused=false;recoveryCandidate=null;recoveryPending=false;state.recordSuppressed=true;selectedRecord='';}
+  render();announce(practiceStore.error||'Saved data removed. Local saving is off. Your open prompt is unchanged.');
+}
+function exportPractice() {
+  persistPractice();
+  if(hasSessionProgress() && !savedCurrent && !window.confirm('Export the last successfully saved data? Current unsaved changes are not included. Copy those changes separately before leaving.'))return;
+  const blob=new Blob([practiceStore.exportJSON()],{type:'application/json'}),url=URL.createObjectURL(blob),link=document.createElement('a');
+  link.href=url;link.download=`promptwise-saved-work-${new Date().toISOString().slice(0,10)}.json`;document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+  announce('Saved work exported as JSON. Keep the file private; it can contain prompt and source text.');
+}
+function deleteSaved(id) {
+  if(!window.confirm('Delete this saved attempt? This cannot be undone. If it is open now, it stays in this tab but will not be saved again until you start another attempt.'))return;
+  if(practiceStore.remove(id)){if(state.attemptId===id){if(state.attemptFingerprint===analysisKeyOf(analysisInput()))state.recordSuppressed=true;else{state.attemptId='';state.attemptFingerprint='';state.attemptCreatedAt='';}}if(recoveryCandidate?.attemptId===id){recoveryCandidate=null;recoveryPending=false;}selectedRecord='';openPractice('history',{replaceEntry:true});}
+  else {render();announce(practiceStore.error);}
+}
+function reuseSaved(id) {
+  const record=practiceStore.read().records.find(r=>r.id===id);if(!record)return;
+  if((hasSessionProgress()||recoveryPending)&&!window.confirm('Use this original for a new attempt? Your open session will be replaced. Saved history is kept.'))return;
+  persistPractice();stopMaterialReads();stopWorkflowRequests();epoch++;analysisSeq++;generateSeq++;
+  recoveryPending=false;recoveryCandidate=null;state=blankState();state.taskId=record.taskId;state.original=record.original;state.details=record.taskId==='other'?{taskDescription:record.taskDescription}:{};
+  if(record.example)state.example={id:'saved-example',title:'Saved practice example',inputKey:exampleInputKey()};
+  state.continuedKey=taskKey();newSession();navigate(1,{replace:true});
+  announce('Original prompt loaded for a new attempt. Add any materials again and select Analyse when ready.');
+}
+async function copySaved(id) {
+  const text=practiceStore.read().records.find(r=>r.id===id)?.rewrite?.edited;if(text==null)return;
+  try{await navigator.clipboard.writeText(text);announce('Saved prompt copied.');}catch{const field=app.querySelector('#saved-prompt');field?.focus();field?.select();announce('Select and copy the saved text using your keyboard or menu.');}
 }
 
 // ---------- Workflow inputs ----------
@@ -196,11 +325,13 @@ function siteFooter() {
   return `<footer class="site-footer">
     <p class="site-footer-brand"><strong>PromptWise</strong> <span>A student prompt coach</span></p>
     <nav class="site-footer-links" aria-label="Site">
+      <a href="#practice" data-nav="practice"${state.page === 'practice' ? ' aria-current="page"' : ''}>My practice</a>
+      <a href="#history" data-nav="history">History</a>
       <a href="#about" data-nav="about"${onAbout ? ' aria-current="page"' : ''}>About &amp; team</a>
       <a href="#how-it-works" data-nav="how-it-works">How it works</a>
     </nav>
     <p class="site-footer-note">UTS Information Systems Capstone · 2026</p>
-    <p class="session-note">Progress stays in this tab only. Refreshing or starting again clears it.</p>
+    <p class="session-note">${practiceStore.enabled ? 'Demo profile: saved locally in this browser. Export important work.' : 'Progress stays in this tab only. Refreshing or starting again clears it.'}</p>
   </footer>`;
 }
 
@@ -294,6 +425,8 @@ function home() {
   return `${header()}<main class="content" id="main" tabindex="-1">
     <h1 class="screen-title" tabindex="-1" data-fk="screen-title">What are you working on?</h1>
     ${engineControls()}
+    ${profileControls({enabled:practiceStore.enabled,error:storageProblem(),count:practiceStore.read().records.length})}
+    ${recoveryPanel()}
     <section class="surface example-panel" aria-labelledby="example-heading">
       <h2 id="example-heading">Explore with an example</h2>
       <p class="field-help">Load a random task, prompt, details and preferences from ${EXAMPLES.length} practice scenarios. Loading makes no AI request.</p>
@@ -630,8 +763,8 @@ function compareScreen() {
           <button class="restart-button" type="button" data-action="restart" data-fk="restart">Improve another prompt</button>
           <p class="copy-message${state.copy.kind ? ` is-${state.copy.kind}` : ''}" id="copy-message">${esc(state.copy.text)}</p>
           ${state.confirmRestart ? `<div class="confirm-bar" role="group" aria-labelledby="restart-message">
-            <p id="restart-message">Start a new prompt? Your current task, prompt, details, materials, evaluation and improved prompt will be cleared. There is no saved history yet. Copy anything you want to keep before continuing.</p>
-            <div class="confirm-actions"><button type="button" class="secondary-button" data-action="confirm-restart" data-fk="confirm-restart">Clear progress and start again</button><button type="button" class="ghost-button" data-action="cancel-restart" data-fk="cancel-restart">Stay here</button></div>
+            <p id="restart-message">Start a new prompt? Your open task, prompt, details, materials, evaluation and improved prompt will close. ${practiceStore.enabled && !storageProblem() && !state.recordSuppressed ? 'Saved attempts stay in History. Pending file work is not saved.' : 'This work is not safely saved. Copy anything you want to keep before continuing.'}</p>
+            <div class="confirm-actions"><button type="button" class="secondary-button" data-action="confirm-restart" data-fk="confirm-restart">Start another prompt</button><button type="button" class="ghost-button" data-action="cancel-restart" data-fk="cancel-restart">Stay here</button></div>
           </div>` : ''}
         </div>
       </section>
@@ -680,6 +813,7 @@ function aboutPage() {
       <h2 id="about-approach">Our approach</h2>
       <p>PromptWise uses seven task-aware criteria: clarity, context, specificity, constraints, output format, audience/level and input/source material. Tone and response depth are optional preferences. The purpose is to make prompt choices understandable while keeping the student in control.</p>
       <p>Local rules mode checks wording and assembles a draft in the browser without AI. When configured for local testing, OpenAI mode analyses and rewrites prompts using the same seven criteria. You choose the mode before starting, and each result identifies its mode. AI findings can be wrong. Only an explicit Analyse or Create action sends the selected text to OpenAI, after you agree. Original files and images are not uploaded. The final prompt is still copied manually.</p>
+      <p>With optional local saving, one demo profile remembers text and results in this browser. History keeps your original review and edited prompt; My practice suggests useful habits from your own attempts. There is no sign-in or cloud backup. Saving can include accepted material text, so use it carefully on shared devices. You can export or remove saved data.</p>
     </section>
     <section class="about-section" aria-labelledby="about-team">
       <h2 id="about-team">Team &amp; responsibilities</h2>
@@ -735,12 +869,16 @@ function render({ enter = '' } = {}) {
   let body;
   if (state.page === 'about') {
     body = aboutPage();
+  } else if (state.page === 'practice') {
+    body = practicePage();
   } else {
     if ((state.screen === 2 || state.screen === 3) && !state.analysis) state.screen = 1;
     body = SCREENS[state.screen]();
   }
-  app.innerHTML = `<a class="skip-link" href="#main" data-skip-main data-fk="skip-main">Skip to main content</a><div class="app-shell ${state.page === 'about' ? 'page-about' : `screen-${state.screen}`}">${body}${siteFooter()}</div>`;
+  app.innerHTML = `<a class="skip-link" href="#main" data-skip-main data-fk="skip-main">Skip to main content</a><div class="app-shell ${state.page !== 'workflow' ? 'page-about' : `screen-${state.screen}`} ">${body}${siteFooter()}</div>`;
+  if(state.recoveryNotice){const note=document.createElement('p');note.className='notice notice-info';note.textContent=state.recoveryNotice;app.querySelector('main h1')?.insertAdjacentElement('afterend',note);}
   autosizeAll();
+  persistPractice();
   syncUnloadWarning();
   // Only the incoming screen moves, so there is never a second live copy of a form.
   if (enter) app.querySelector('main')?.classList.add(`enter-${enter}`);
@@ -770,7 +908,7 @@ newSession();
 const workflowUrl = () => `${location.pathname}${location.search}`;
 
 function navigate(screen, { fromHistory = false, replace = false, keepErrors = false } = {}) {
-  const leavingAbout = state.page === 'about';
+  const leavingAbout = state.page !== 'workflow';
   const changed = screen !== state.screen || leavingAbout;
   const direction = leavingAbout || screen < state.screen ? 'backward' : 'forward';
   const returnTo = leavingAbout ? state.returnTo : null;
@@ -822,7 +960,7 @@ function openAbout(section = '', { fromHistory = false, replaceEntry = false } =
     showAboutSection(section);
     return;
   }
-  state.returnTo = { screen: state.screen, scroll: window.scrollY, focus: focusKeyOf(document.activeElement) };
+  if (state.page === 'workflow' && (!fromHistory || !state.returnTo)) state.returnTo = { screen: state.screen, scroll: window.scrollY, focus: focusKeyOf(document.activeElement), depth: fromHistory ? Math.max(0,historyDepth-1) : historyDepth };
   state.page = 'about';
   state.stepHint = '';
   state.pendingTask = '';
@@ -835,9 +973,21 @@ function openAbout(section = '', { fromHistory = false, replaceEntry = false } =
   showAboutSection(section);
 }
 
+const isPracticeHash = () => /^#(?:practice|history(?:\/[a-zA-Z0-9_-]{1,100})?)$/.test(location.hash);
+function openPractice(view='dashboard',{fromHistory=false,replaceEntry=false,id=''}={}) {
+  if(state.page==='workflow'&&(!fromHistory||!state.returnTo))state.returnTo={screen:state.screen,scroll:window.scrollY,focus:focusKeyOf(document.activeElement),depth:fromHistory?Math.max(0,historyDepth-1):historyDepth};
+  state.page='practice';practiceView=view;selectedRecord=id;state.stepHint='';state.pendingTask='';
+  const hash=view==='history'?`#history${id?'/'+id:''}`:'#practice';
+  render({enter:'forward'});
+  if(!fromHistory){const entry={pw:state.screen,page:'practice',view,id,depth:replaceEntry?historyDepth:++historyDepth,sid:sessionId,back:!replaceEntry};
+    if(replaceEntry)history.replaceState(entry,'',hash);else history.pushState(entry,'',hash);}
+  document.title=`${view==='history'?'Saved attempts':'My practice'} – PromptWise`;
+  window.scrollTo({top:0,behavior:'instant'});app.querySelector('.screen-title')?.focus({preventScroll:true});
+}
+function practiceFromHash(options={}) {openPractice(location.hash.startsWith('#history')?'history':'dashboard',{...options,id:location.hash.startsWith('#history/')?location.hash.slice(9):''});}
 function closeAbout() {
-  if (history.state?.page === 'about' && history.state.back && historyDepth > 0) history.back();
-  else navigate(allowedScreen(state.returnTo?.screen ?? state.screen), { replace: true });
+  if(Number.isInteger(state.returnTo?.depth)&&historyDepth>state.returnTo.depth){history.go(state.returnTo.depth-historyDepth);return;}
+  navigate(allowedScreen(state.returnTo?.screen??state.screen),{replace:true});
 }
 
 // Typing does not re-render the screen, so refresh only the progress control when step availability may change.
@@ -949,6 +1099,7 @@ function applyTask(id) {
   state.generating = false;
   state.generateError = '';
   state.taskId = id;
+  state.attemptId = ''; state.attemptFingerprint = ''; state.attemptCreatedAt = ''; state.recordSuppressed = false;
   state.example = null;
   state.pendingTask = '';
   state.details = {};
@@ -1015,13 +1166,16 @@ async function analyse() {
   const current = key === analysisKeyOf(analysisInput());
   const stillHere = state.page === 'workflow' && state.screen === startScreen;
   if (result && current) {
-    state.analysis = result;
+    if(state.attemptFingerprint!==key){state.attemptId=freshId();state.attemptCreatedAt=new Date().toISOString();state.attemptFingerprint=key;state.recordSuppressed=false;}
+    state.analysis = {...result,frameworkVersion:FRAMEWORK_VERSION};
     state.analysisKey = key;
     // Start desktop reviews expanded and mobile reviews compact; preserve subsequent choices.
     state.expanded = new Set(desktop.matches ? result.criteria.map(row => row.key) : []);
     state.groupOpen = {};
   }
+  persistPractice();
   if (!stillHere) {
+    if(state.page==='practice')render();
     // The user moved on (or opened About) while the request was pending: keep any current result, but stay where they are.
     if (state.page === 'workflow' && state.screen === 1) render();
     return;
@@ -1110,7 +1264,8 @@ async function generate({ replace = false } = {}) {
   } else {
     state.generateError = engine === 'openai' ? failure?.message || 'The AI rewrite failed. Your input is unchanged.' : 'The draft could not be assembled. Your prompt, details and preferences are unchanged.';
   }
-  if (state.page !== 'workflow') return;
+  persistPractice();
+  if (state.page !== 'workflow') {if(state.page==='practice')render();return;}
   if (state.screen === 4) {
     render();
     app.querySelector('.screen-title')?.focus({ preventScroll: true });
@@ -1165,11 +1320,13 @@ async function copyDraft() {
 const exampleInputKey = () => analysisKeyOf({ taskId: state.taskId, original: state.original, details: state.details, preferences: state.preferences });
 
 function loadExample() {
+  if(!discardRecoveryForNewWork())return;
   // Unmodified samples can be cycled freely. Protect all user input, files and results.
   const hasInput = state.taskId || clean(state.original) || Object.values(state.details).some(clean) || Object.values(state.preferences).some(clean);
   const untouchedSample = state.example && state.example.inputKey === exampleInputKey();
   const replaceWork = state.analysis || state.draft || state.analysing || state.generating || Object.keys(state.files).length || (hasInput && !untouchedSample);
   if (replaceWork && !window.confirm('Load another example? This replaces your task, prompt, details, preferences, files and results. Your review mode is kept.')) return;
+  persistPractice();
   const example = pickExample();
   stopMaterialReads();
   stopWorkflowRequests();
@@ -1190,6 +1347,7 @@ function loadExample() {
 }
 
 function restart(force = false) {
+  persistPractice();
   if (!force && hasSessionProgress()) {
     state.confirmRestart = true;
     render();
@@ -1332,7 +1490,8 @@ app.addEventListener('click', event => {
     // Modified clicks open the page in a new tab as normal links.
     if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
     event.preventDefault();
-    openAbout(navLink.dataset.nav === 'how-it-works' ? 'how-it-works' : '');
+    if(navLink.dataset.nav==='practice'||navLink.dataset.nav==='history')openPractice(navLink.dataset.nav==='history'?'history':'dashboard',{id:navLink.dataset.record||''});
+    else openAbout(navLink.dataset.nav === 'how-it-works' ? 'how-it-works' : '');
     return;
   }
   const step = event.target.closest('[data-step]');
@@ -1388,6 +1547,14 @@ app.addEventListener('click', event => {
   if (action === 'back') goBack();
   else if (action === 'close-about') closeAbout();
   else if (action === 'continue') continueFromHome();
+  else if (action === 'resume-practice') resumePractice();
+  else if (action === 'discard-recovery') {if(discardRecoveryForNewWork())render();}
+  else if (action === 'export-practice') exportPractice();
+  else if (action === 'clear-practice') clearPractice();
+  else if (action === 'retry-save') {if(savingPaused)announce(storageProblem());else{if(!practiceStore.enabled)practiceStore.enable();persistPractice();render();}}
+  else if (action === 'delete-saved') deleteSaved(event.target.closest('[data-action]').dataset.record);
+  else if (action === 'reuse-saved') reuseSaved(event.target.closest('[data-action]').dataset.record);
+  else if (action === 'copy-saved') copySaved(event.target.closest('[data-action]').dataset.record);
   else if (action === 'load-example') loadExample();
   else if (action === 'confirm-task') {
     const next = state.pendingTask;
@@ -1490,12 +1657,19 @@ app.addEventListener('input', event => {
 
 app.addEventListener('change', event => {
   const target = event.target;
-  if (target.matches('[data-engine]')) {
+  if(target.matches('[data-practice-enable]')) {
+    if(target.checked){if(savingPaused){target.checked=false;announce(storageProblem());return;}state.recordSuppressed=false;practiceStore.enable();persistPractice();render();}
+    else{clearPractice();target.checked=practiceStore.enabled;}
+  } else if(target.matches('[data-practice-task]')){practiceTask=target.value;practiceCohort='';render();app.querySelector('#practice-task')?.focus();}
+  else if(target.matches('[data-practice-cohort]')){practiceCohort=target.value;render();app.querySelector('#practice-cohort')?.focus();}
+  else if (target.matches('[data-engine]')) {
     if (target.value === engine) return;
     if ((state.analysis || state.draft || state.analysing || state.generating) && !window.confirm('Change review mode? Existing analysis and draft will be cleared. Your prompt, details and files are kept.')) { target.value = engine; return; }
     stopWorkflowRequests();
     analysisSeq += 1; generateSeq += 1;
+    persistPractice();
     engine = target.value === 'openai' ? 'openai' : 'local-rules';
+    state.attemptId = ''; state.attemptFingerprint = ''; state.attemptCreatedAt = ''; state.recordSuppressed = false;
     aiConsent = false;
     state.analysis = null; state.analysisKey = ''; state.personalisedKey = '';
     state.draft = null; state.improved = ''; state.copiedValue = null; state.copy = { text: '', kind: '' }; state.expanded = new Set(); state.groupOpen = {};
@@ -1504,6 +1678,7 @@ app.addEventListener('change', event => {
   } else if (target.matches('[data-ai-consent]')) {
     aiConsent = target.checked;
   } else if (target.matches('.task-radio')) {
+    if(!discardRecoveryForNewWork()){target.checked=false;return;}
     selectTask(target.value, target);
   } else if (target.matches('[data-file-input]')) {
     const file = target.files?.[0];
@@ -1526,13 +1701,18 @@ app.addEventListener('toggle', event => {
 }, true);
 
 document.addEventListener('input', syncUnloadWarning);
+document.addEventListener('input', schedulePracticeSave);
+document.addEventListener('change', schedulePracticeSave);
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')persistPractice();});
+window.addEventListener('storage',event=>{if(event.storageArea===storage&&(event.key===PRACTICE_KEY||event.key===null)){savingPaused=true;savedCurrent=false;render();}});
 document.addEventListener('change', syncUnloadWarning);
 
 window.addEventListener('popstate', event => {
   if (!event.state) {
     // A hash typed into the address bar: show the matching page and give the entry a proper state.
-    if (isAboutHash()) openAbout(location.hash === '#how-it-works' ? 'how-it-works' : '', { replaceEntry: true });
-    else navigate(state.page === 'about' ? allowedScreen(state.returnTo?.screen ?? 0) : state.screen, { replace: true });
+    if(isPracticeHash())practiceFromHash({replaceEntry:true});
+    else if (isAboutHash()) openAbout(location.hash === '#how-it-works' ? 'how-it-works' : '', { replaceEntry: true });
+    else navigate(state.page !== 'workflow' ? allowedScreen(state.returnTo?.screen ?? 0) : state.screen, { replace: true });
     return;
   }
   const depth = Number.isInteger(event.state?.depth) ? event.state.depth : 0;
@@ -1544,6 +1724,7 @@ window.addEventListener('popstate', event => {
     else history.forward();
     return;
   }
+  if(event.state.page==='practice'){practiceFromHash({fromHistory:true});return;}
   if (event.state.page === 'about') {
     openAbout(location.hash === '#how-it-works' ? 'how-it-works' : '', { fromHistory: true });
     return;
@@ -1583,13 +1764,15 @@ window.addEventListener('resize', () => {
   resizeFrame = requestAnimationFrame(() => autosizeAll());
 });
 
-// A reload starts a fresh in-memory session at Home but keeps the tab's existing history depth.
+// Reload opens Home (or an auxiliary hash route) and offers optional saved-session recovery.
 historyDepth = Number.isInteger(history.state?.depth) ? history.state.depth : 0;
-if (isAboutHash()) {
+if(isPracticeHash()){
+  state.returnTo={screen:0,scroll:0,focus:null,depth:historyDepth};practiceFromHash({replaceEntry:true});
+} else if (isAboutHash()) {
   // A direct visit to About has no workflow behind it; Return to prompt starts at Home.
   const section = location.hash === '#how-it-works' ? 'how-it-works' : '';
   state.page = 'about';
-  state.returnTo = { screen: 0, scroll: 0, focus: null };
+  state.returnTo = { screen: 0, scroll: 0, focus: null, depth: historyDepth };
   history.replaceState({ pw: 0, page: 'about', depth: historyDepth, sid: sessionId, back: false }, '', location.hash);
   document.title = 'About & team – PromptWise';
   render();

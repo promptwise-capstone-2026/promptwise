@@ -52,3 +52,30 @@ Loading does not call AI, check consent or skip steps. Review mode and existing
 consent are kept. Existing user inputs, files or results require confirmation
 before replacement; untouched samples can be cycled freely. Analyse still checks
 only the original prompt/custom task, not the preloaded personalisation details.
+
+## Optional local profile, history and learning dashboard
+
+On Home, enable **Remember my work on this device** to use the single **Demo
+learner** profile. Saving is off by default. This is one browser profile at one
+website address, with no sign-in, server account, cloud backup or device sync.
+The five-screen workflow works with saving off or unavailable.
+
+**History** keeps original prompts, their initial seven-criteria evaluations,
+generated drafts and the last student-edited version. **My practice** shows
+supportive tips, criterion patterns and an attempt timeline, separated by task,
+mode, model and framework version. Practice examples are excluded from dashboard
+statistics. These patterns are guidance, not grades or proof of learning.
+
+Refresh, then select **Resume saved work** on Home to recover saved text and
+results without another AI request. Accepted material text is included in session
+recovery; original file bytes and unaccepted extracts are not. API consent is
+never restored. Reusing an original from History starts a new attempt without
+its material fields or preferences.
+
+Use **Export saved work (JSON)**, **Delete saved attempt**, or **Remove saved data
+& turn saving off** to manage saved work. JSON import is not implemented. Browser
+data can be cleared or lost; exports may contain private source text. The local
+limit is 50 attempts and 1,800,000 serialized characters, with visible errors
+rather than silent removal of older records. See [the milestone review](docs/LEARNING_PRACTICE_REVIEW.md)
+for verification and limitations. This user-authorised extension goes beyond the
+original report scope; academic scope confirmation remains pending.

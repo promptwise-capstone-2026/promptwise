@@ -546,3 +546,53 @@ select.text-field { appearance: none; padding-right: 40px; background-image: lin
     .compare-col.improved-col { grid-column: 2; }
   }
 }
+
+/* Local demo profile and optional learning history sit outside the five steps. */
+.profile-panel, .recovery-panel { margin: 18px 0; display: grid; gap: 12px; }
+.profile-panel .section-heading { align-items: center; }
+.profile-panel .section-heading a { min-height: 44px; display: inline-flex; align-items: center; font-weight: 700; }
+.profile-panel h2 .optional-tag { vertical-align: middle; }
+.remember-choice { display: flex; align-items: flex-start; gap: 10px; font-weight: 700; cursor: pointer; min-height: 44px; }
+.remember-choice input { width: 22px; height: 22px; flex: none; margin: 2px 0 0; accent-color: var(--ink); }
+.profile-privacy > summary { min-height: 44px; display: flex; align-items: center; font-weight: 650; cursor: pointer; }
+.practice-page { max-width: 100%; }
+.practice-nav { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 20px; margin: 0 0 20px; }
+.practice-nav a { min-height: 44px; display: inline-flex; align-items: center; font-weight: 700; }
+.practice-nav a[aria-current="page"] { text-decoration-thickness: 3px; text-underline-offset: 5px; }
+.practice-filters { display: grid; gap: 12px 20px; margin-top: 18px; }
+.practice-filters .field { margin-bottom: 0; }
+.practice-filters select { max-width: 100%; }
+.next-practice, .practice-empty, .timeline-section { margin: 20px 0; display: grid; gap: 12px; }
+.next-practice { background: #eff5ff; border-color: var(--info-line); }
+.pattern-list, .history-list, .saved-criteria { list-style: none; padding: 0; margin: 16px 0; display: grid; gap: 12px; }
+.pattern-card { display: grid; align-content: start; gap: 10px; min-width: 0; }
+.pattern-card h3 { margin: 0; font-size: 1.05rem; }
+.pattern-card strong { font-size: .86rem; }
+.pattern-card p { overflow-wrap: anywhere; }
+.pattern-track { height: 8px; border-radius: 8px; overflow: hidden; background: #d4dce9; }
+.pattern-track span { display: block; height: 100%; background: #557ab8; }
+.table-scroll { max-width: 100%; overflow-x: auto; }
+.practice-table { width: 100%; border-collapse: collapse; text-align: left; }
+.practice-table caption { text-align: left; margin-bottom: 10px; font-weight: 700; }
+.practice-table th, .practice-table td { padding: 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.practice-table a { display: inline-flex; align-items: center; min-height: 44px; }
+.history-card { display: grid; gap: 10px; color: var(--ink); text-decoration: none; overflow-wrap: anywhere; }
+.history-card:hover { border-color: var(--control-line); background: #eef3fd; }
+.history-card .section-heading { align-items: center; }
+.history-detail { display: grid; gap: 14px; margin: 16px 0; }
+.history-detail h3 { margin: 8px 0 0; }
+.history-detail .improved-input { min-height: 220px; }
+.history-detail .copy-button { justify-self: start; max-width: 100%; }
+.saved-criteria details { padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; }
+.saved-criteria summary { display: flex; flex-wrap: wrap; gap: 8px 16px; justify-content: space-between; align-items: center; min-height: 44px; cursor: pointer; }
+.saved-criteria p { margin: 10px 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+@media (min-width: 640px) {
+  .practice-filters { grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); }
+  .pattern-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+.selected-review-group { overflow-wrap: anywhere; }
+
+.profile-privacy > summary::before, .saved-criteria summary::before { content: ''; display: inline-block; flex: 0 0 8px; width: 8px; height: 8px; border-right: 2px solid currentColor; border-top: 2px solid currentColor; transform: rotate(45deg); margin: 0 10px 0 2px; }
+.profile-privacy[open] > summary::before, .saved-criteria details[open] > summary::before { transform: rotate(135deg); }
+.saved-criteria summary > span { flex: 1 1 130px; }

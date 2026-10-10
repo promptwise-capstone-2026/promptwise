@@ -1,6 +1,6 @@
-# Learning history and dashboard â€” proposal, 10 October 2026
+# Learning history and dashboard extension
 
-Status: proposed by the user, not implemented or an agreed change to scope.
+Status, 10 October 2026: the user authorised development of a limited local demo profile, history, recovery and dashboard. The first local milestone is implemented; see [verification and limitations](LEARNING_PRACTICE_REVIEW.md). This is user authorisation to develop an extension, not confirmation that Amara or the team has agreed to amend the assessed scope. Online accounts remain future work.
 
 ## Fit with the supplied report
 
@@ -14,7 +14,7 @@ approve this extension. Preserve time for evaluation and the final report.
 
 ## Recommended sequence
 
-1. Agree the learning questions, limited feature set and scope change.
+1. Record the user-authorised local feature set and confirm the academic scope change with the team and Amara. Development can continue while that confirmation is pending.
 2. Build optional device-only recovery and history first. Accounts are not
    required for persistence in one browser. Explain storage before enabling it;
    include delete-one, clear-all and export controls. Do not promise a backup:
@@ -58,9 +58,7 @@ more detail. Next time, try adding the subject and what you are preparing for.â€
 - Repeated Missing/Partial patterns are prompts for reflection, not a measure of
   intelligence or proof of learning. AI judgements are uncertain; fewer missing
   criteria can also reflect a different task or evaluator.
-- Minimise retention. Keep source attachments and full extracted source text out
-  of saved history by default; explain any optional inclusion. A restored attempt
-  without its sources must say they need reattaching before reuse.
+- Minimise retention. Original attachment bytes are never saved. History omits separate material fields, although prompts and rewrites can themselves contain source text. Optional current-session recovery includes accepted material text and explains this before saving is enabled. Unaccepted extracts and pending choices require reattaching. Reusing a history original does not restore its source fields.
 - Never save keys, original report/contract files or private reference documents.
   Escape saved text on display and validate any future imported history.
 - Browser records belong to a browser profile and origin. Moving from localhost
