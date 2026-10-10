@@ -443,7 +443,6 @@ select.text-field { appearance: none; padding-right: 40px; background-image: lin
 
 @media (min-width: 640px) {
   .team-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .site-footer-note { flex-basis: auto; margin-left: auto; }
   .step-item { font-size: .82rem; padding: 4px 6px; }
   :root { --gutter: 32px; }
   .task-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -454,6 +453,7 @@ select.text-field { appearance: none; padding-right: 40px; background-image: lin
 
 @media (min-width: 960px) {
   :root { --gutter: 48px; }
+  .site-footer-note { flex-basis: auto; margin-left: auto; }
   body { padding: 28px 24px; }
   .app-shell { max-width: 1240px; min-height: calc(100vh - 56px); border-radius: 22px; box-shadow: var(--shadow); overflow: clip; }
   .home-head { padding-top: 36px; }

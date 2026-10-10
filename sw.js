@@ -1,5 +1,5 @@
 // Bump CACHE whenever the asset list or the shipped bundle changes.
-const CACHE = 'promptwise-v13';
+const CACHE = 'promptwise-v14';
 const ASSETS = [
   '/',
   '/index.html',
