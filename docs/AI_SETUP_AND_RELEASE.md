@@ -10,7 +10,7 @@ choices; this document does not amend the private originals or predict a grade.
 | --- | --- |
 | Functional scope | Five screens, six tasks, seven qualitative criteria, task-aware guidance, editable/copyable output and optional preferences are implemented. |
 | Material handling | TXT/MD/PDF/DOCX/PPTX text can be reviewed and supplied in every task. No OCR, image/diagram understanding, audio or video. |
-| AI coaching | Local backend and UI implemented; mocked integration verified. Personal key and real model evaluation are still needed. |
+| AI coaching | Local backend/UI and real API connectivity verified across six tasks. Calibration exposed judgement errors; independent model evaluation remains necessary. |
 | Educational contribution | Explain the operational framework, task branching, evidence-based feedback, student review, source handling and independent evaluation. An API wrapper alone does not meet Amara's conditions. |
 | Final report (70 points) | Needs actual methodology, results, discussion, limitations, updated architecture/scope, literature support and contribution evidence. Exact detailed report rubric and LOs were not supplied. |
 | Final presentation (10 points) | Show the student problem, clear arguments, useful visuals, a short working demo, results and each member's contribution. Follow the supplied 6–9-minute limit. |
@@ -23,7 +23,7 @@ report ahead of further visual features; final submission is recorded as 23 Octo
 
 ## Personal OpenAI account
 
-The user reports a US$10 top-up. No further purchase is needed to begin.
+The user reports a US$10 top-up. No further purchase is needed to begin. The user has now saved the personal project key; authorised live checks succeeded. See `AI_INTEGRATION_REVIEW.md` for findings and limits.
 
 1. Sign in to the [API platform](https://platform.openai.com/) with your personal account.
 2. Create/select a project called PromptWise and create a project API key. Confirm

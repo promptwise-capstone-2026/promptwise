@@ -88,3 +88,11 @@ remains local rules. Model snapshot and request limits are implementation choice
 Mock tests do not establish live model quality. Remote AI is disabled pending
 hosted access and durable usage controls; a public demo/domain is optional and
 not a completed production requirement. See docs/AI_SETUP_AND_RELEASE.md.
+
+### Personal-key live checks — 10 October 2026
+
+User saved the project key locally. Real analysis/rewrite requests succeeded for
+all six tasks; calibrated instructions using the report's worked example and
+observed failures. Exact-evidence validation rejected an invented quote. AI still
+sometimes over-requires material or overlaps criteria; no accuracy claim is made.
+Independent evaluation remains necessary. See docs/AI_INTEGRATION_REVIEW.md.
