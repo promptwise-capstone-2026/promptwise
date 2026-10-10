@@ -108,7 +108,7 @@ copied manually into the student's chosen tool.
 - Thai and Amara portraits are supplied in `public/team/thai.jpeg` and
   `public/team/amara-atif.jpeg`. All four avatar spaces display at 96 × 96 CSS px;
   Noah and Angela use decorative initials while their photos are pending.
-  Preserve supplied originals; the Thai portrait uses a closer CSS display crop.
+  Thai supplied an aligned square portrait; display it without extra zoom or offsets.
   To add a remaining photo, save `noah.jpeg` or `angela.jpeg`, update its TEAM
   photo path in `src/app.js`, add the exact URL to the server allowlist and
   service-worker assets, and bump the cache. Do not cache a missing photo.
