@@ -1580,7 +1580,8 @@ app.addEventListener('input', event => {
       stopWorkflowRequests(); analysisSeq += 1; generateSeq += 1;
       state.analysing = false; state.generating = false;
       const button = app.querySelector('[data-action="analyse"]');
-      if (button) { button.disabled = false; button.textContent = 'Analyse Prompt'; }
+      // The busy state uses aria-disabled (not disabled) so focus stays put; clear both labels of it.
+      if (button) { button.removeAttribute('aria-disabled'); button.textContent = 'Analyse Prompt'; }
     }
     state.original = target.value;
     clearFieldError('original');

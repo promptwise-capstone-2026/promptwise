@@ -53,6 +53,7 @@ html { scroll-padding-top: 16px; scroll-padding-bottom: 132px; }
 body { margin: 0; background: var(--canvas); line-height: 1.5; overflow-x: hidden; }
 button, input, textarea, select { font: inherit; color: inherit; }
 button { cursor: pointer; }
+a { color: var(--ink); text-underline-offset: 3px; }
 p { margin: 0; }
 [hidden] { display: none !important; }
 :focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
@@ -580,3 +581,17 @@ select.text-field { appearance: none; padding-right: 40px; background-image: lin
 .history-short a { display: inline-flex; align-items: center; min-height: 44px; font-weight: 700; }
 
 .saved-criteria summary::before { margin: 0; }
+
+/* Match Analysis: bold criterion names, chevron after the status; native markers replaced by the shared chevron. */
+.saved-criteria summary { grid-template-columns: minmax(0, 1fr) auto 10px; list-style: none; }
+.saved-criteria summary::-webkit-details-marker { display: none; }
+.saved-criteria summary > .criterion-name { font-weight: 700; }
+.saved-criteria summary::before { order: 3; border-top: 0; border-bottom: 2px solid currentColor; transform: rotate(45deg) translate(-2px, -2px); }
+.saved-criteria details[open] > summary::before { transform: rotate(225deg) translate(-2px, -2px); }
+.history-detail > details > summary { min-height: 44px; display: flex; align-items: center; gap: 10px; cursor: pointer; font-weight: 700; list-style: none; }
+.history-detail > details > summary::-webkit-details-marker { display: none; }
+.history-detail > details > summary::before { content: ""; flex: none; width: 8px; height: 8px; border-right: 2.5px solid var(--ink); border-bottom: 2.5px solid var(--ink); transform: rotate(-45deg); margin: 0 4px 0 2px; }
+.history-detail > details[open] > summary::before { transform: rotate(45deg); }
+.engine-controls { display: grid; gap: 10px; }
+.engine-controls label:has(> input[type="checkbox"]) { display: flex; align-items: flex-start; gap: 10px; min-height: 44px; font-weight: 700; cursor: pointer; }
+.engine-controls input[type="checkbox"] { flex: none; width: 22px; height: 22px; margin: 2px 0 0; accent-color: var(--ink); }
