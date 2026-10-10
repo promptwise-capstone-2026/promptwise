@@ -66,7 +66,7 @@ export function getPersonalisationFields(input, criteria = analysePrompt(input))
       // Material availability is independent of whether the original diagnosis needs it.
       alwaysVisible: Boolean(material) && field.key !== 'criteria',
       priority,
-      placeholder: priority === 'recommended' ? field.placeholder?.replace(/^Optional:\s*/i, '') : field.placeholder,
+      placeholder: priority === 'recommended' ? field.placeholder?.replace(/^Optional:\s*([a-z]?)/i, (_, initial) => initial.toUpperCase()) : field.placeholder,
       guidance: taskFieldGuidance[task.id]?.[field.key] || fieldGuidance[field.key] || row?.suggestion || row?.reason || '',
       ...(material ? { material } : {})
     };

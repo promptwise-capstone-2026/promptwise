@@ -139,3 +139,12 @@ prompt; a smaller minimum height would look tidier.
 - The clipboard `execCommand` fallback, home-screen installation, forced colours and live OpenAI responses
   were not verified.
 - Scratch scripts and screenshots are outside the repository and are not a durable UI test suite.
+
+## Codex integration follow-up — 10 October 2026
+
+- Inspected commit `a992ea6` against `b1d078c` and confirmed the reported frontend changes and clean tree.
+- Fixed the shared guidance issue above: when a recommended placeholder loses its `Optional:` prefix, its initial letter is now capitalised. Optional placeholders retain their original wording.
+- Bumped the service-worker cache to `promptwise-v16` for the changed shared browser module.
+- Independently ran `npm test`: 56/56 passed, and `git diff --check`: clean. A focused module check verified affected recommended placeholders across all six tasks and unchanged optional wording.
+- Did not repeat Claude's browser audit; its results and browser/device limitations above remain attributed to that review. No paid API calls, pushes or publication.
+- Optional visual recommendations remain proposals; none was applied in this follow-up.
