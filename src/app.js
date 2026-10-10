@@ -1,3 +1,4 @@
+import { createExamplePicker, EXAMPLES } from './examples.js';
 import { getAIConfiguration, runAI } from './ai-client.js';
 import { TASKS, FORMATS, LEVELS, TONES, DEPTHS, PREFERENCE_LABELS, getDetailLabel } from './tasks.js';
 import { validateInput, CUSTOM_TASK_MAX_LENGTH, getValidationFieldMeta } from './validation.js';
@@ -30,6 +31,7 @@ const blankState = () => ({
   groupOpen: {},
   taskId: '',
   pendingTask: '',
+  example: null,
   original: '',
   details: {},
   preferences: {},
@@ -51,6 +53,7 @@ const blankState = () => ({
 });
 
 let state = blankState();
+const pickExample = createExamplePicker();
 let engine = 'local-rules';
 let aiConfig = { aiAvailable: false };
 let aiConsent = false;
@@ -269,6 +272,12 @@ function home() {
   return `${header()}<main class="content" id="main">
     <h1 class="screen-title" tabindex="-1" data-fk="screen-title">What are you working on?</h1>
     ${engineControls()}
+    <section class="surface example-panel" aria-labelledby="example-heading">
+      <h2 id="example-heading">Explore with an example</h2>
+      <p class="field-help">Load a random task, prompt, details and preferences from ${EXAMPLES.length} practice scenarios. Loading makes no AI request.</p>
+      <button type="button" class="secondary-button" data-action="load-example" data-fk="load-example">${state.example ? 'Try another example' : 'Try an example'}</button>
+      ${state.example ? `<p class="example-loaded"><strong>Example loaded: ${esc(state.example.title)}.</strong> Everything is editable. Select Continue; details and preferences are ready on Personalise. Source text is synthetic.</p>` : ''}
+    </section>
     ${requiredNote}
     <fieldset class="task-fieldset"${describedBy(errId('taskId'))}>
       <legend class="group-label">Choose an academic task${reqMark}</legend>
@@ -477,7 +486,7 @@ function fieldGroup(id, title, help, fields) {
 
 function preferencesGroup(otherFormat) {
   const prefErrors = [...Object.keys(PREFERENCE_LABELS), 'otherFormat'].some(key => state.errors[key]);
-  const body = `<p class="section-help">Nothing is chosen for you. Tone and depth are preferences, not quality criteria.</p>
+  const body = `<p class="section-help">All preferences are optional and can be changed or cleared. Tone and depth are preferences, not quality criteria.</p>
     ${selectField('level', PREFERENCE_LABELS.level, LEVELS)}
     <div class="field">
       <label class="field-label" for="pref-audience">${PREFERENCE_LABELS.audience}</label>
@@ -909,6 +918,7 @@ function applyTask(id) {
   state.generating = false;
   state.generateError = '';
   state.taskId = id;
+  state.example = null;
   state.pendingTask = '';
   state.details = {};
   state.files = {};
@@ -1120,6 +1130,33 @@ async function copyDraft() {
   }
 }
 
+const exampleInputKey = () => analysisKeyOf({ taskId: state.taskId, original: state.original, details: state.details, preferences: state.preferences });
+
+function loadExample() {
+  // Unmodified samples can be cycled freely. Protect all user input, files and results.
+  const hasInput = state.taskId || clean(state.original) || Object.values(state.details).some(clean) || Object.values(state.preferences).some(clean);
+  const untouchedSample = state.example && state.example.inputKey === exampleInputKey();
+  const replaceWork = state.analysis || state.draft || state.analysing || state.generating || Object.keys(state.files).length || (hasInput && !untouchedSample);
+  if (replaceWork && !window.confirm('Load another example? This replaces your task, prompt, details, preferences, files and results. Your review mode is kept.')) return;
+  const example = pickExample();
+  stopMaterialReads();
+  stopWorkflowRequests();
+  epoch += 1;
+  analysisSeq += 1;
+  generateSeq += 1;
+  state = blankState();
+  state.taskId = example.taskId;
+  state.original = example.original;
+  state.details = example.details;
+  state.preferences = example.preferences;
+  state.example = { id: example.id, title: example.title, inputKey: exampleInputKey() };
+  // A fresh workflow invalidates old history milestones without unlocking any steps.
+  newSession();
+  navigate(0, { replace: true });
+  app.querySelector('[data-fk="load-example"]')?.focus();
+  announce(`Example loaded: ${example.title}. ${taskById(example.taskId).label} selected. You can edit everything; select Continue when ready.`);
+}
+
 function restart(force = false) {
   if (!force && draftEdited()) {
     state.confirmRestart = true;
@@ -1314,6 +1351,7 @@ app.addEventListener('click', event => {
   if (action === 'back') goBack();
   else if (action === 'close-about') closeAbout();
   else if (action === 'continue') continueFromHome();
+  else if (action === 'load-example') loadExample();
   else if (action === 'confirm-task') {
     const next = state.pendingTask;
     applyTask(next);

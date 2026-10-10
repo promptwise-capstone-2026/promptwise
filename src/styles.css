@@ -514,3 +514,10 @@ select.text-field { appearance: none; padding-right: 40px; background-image: lin
 .engine-controls { margin: 20px 0; padding: 20px; }
 .engine-controls select { width: 100%; }
 .engine-controls input[type="checkbox"] { width: 18px; height: 18px; vertical-align: middle; margin-right: 6px; }
+
+/* Example loader stays in the page flow, clear of mobile actions. */
+.example-panel { margin: 20px 0; padding: 18px; display: grid; gap: 12px; }
+.example-panel h2 { font-size: 1.05rem; }
+.example-panel .field-help, .example-panel p { margin: 0; }
+.example-panel .secondary-button { justify-self: start; max-width: 100%; }
+.example-loaded { color: var(--ink-2); font-size: .9rem; }

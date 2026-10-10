@@ -13,7 +13,7 @@ if (!Array.isArray(vendorAssets) || vendorAssets.some(path => !/^\/public\/vendo
 // case-insensitive filesystem and could expose new non-source artifacts.
 export const PUBLIC_PATHS = [
   '/index.html', '/sw.js', '/src/app.js', '/src/styles.css',
-  '/src/tasks.js', '/src/rules.js', '/src/guidance.js',
+  '/src/tasks.js', '/src/examples.js', '/src/rules.js', '/src/guidance.js',
   '/src/validation.js', '/src/workflow.js', '/src/ai-client.js', '/src/materials.js', '/src/document-materials.js',
   '/public/icon.svg', '/public/manifest.webmanifest', '/public/vendor/manifest.json', ...vendorAssets
 ];

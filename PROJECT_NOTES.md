@@ -96,3 +96,16 @@ all six tasks; calibrated instructions using the report's worked example and
 observed failures. Exact-evidence validation rejected an invented quote. AI still
 sometimes over-requires material or overlaps criteria; no accuracy claim is made.
 Independent evaluation remains necessary. See docs/AI_INTEGRATION_REVIEW.md.
+
+### Practice example loader — 10 October 2026
+
+User-requested addition, rather than an original report requirement. Home now
+loads one of 18 synthetic academic scenarios across six tasks, using a shuffled
+non-repeating deck per page session. No AI request or automatic consent/action.
+Inputs stay editable; replacement of user work requires confirmation. Existing
+analysis/draft/files and milestones are cleared on confirmed replacement.
+New browser module is allowlisted and cached under promptwise-v8. `npm test`
+passes 48/48; focused Chromium checks covered a full deck, six-task coverage,
+mode/consent preservation, keyboard activation, replacement cancellation, normal
+workflow, responsive Home at 320/375/1440px and offline reload. No paid calls.
+Independent AI-quality evaluation remains separate from these demonstration cases.
