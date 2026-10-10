@@ -85,3 +85,24 @@ test('AI client surfaces server failures and cannot return a local result as AI'
   await assert.rejects(runAI('analyse', input, { fetchImpl: async () => new Response(JSON.stringify({ error: 'Check billing.' }), { status: 429 }) }), /Check billing/);
   await assert.rejects(runAI('improve', input, { fetchImpl: async () => new Response(JSON.stringify({ mode: 'local-rules', improvedPrompt: 'bad' })) }), /unexpected mode/);
 });
+
+test('remote callers cannot enable or invoke the local AI handler', async () => {
+  const { createApiHandler } = await import('../server/api.mjs');
+  let outbound = 0;
+  const handle = createApiHandler({ env: { PROMPTWISE_AI_ENABLED: 'true', OPENAI_API_KEY: 'fixture' }, fetchImpl: async () => { outbound++; } });
+  const capture = () => ({ destroyed: false, writeHead(status, headers) { this.status = status; this.headers = headers; return this; }, end(body) { this.body = JSON.parse(body); } });
+  const request = { method: 'GET', socket: { remoteAddress: '203.0.113.5' }, headers: {} };
+  const config = capture(); await handle(request, config, '/api/config'); assert.equal(config.body.aiAvailable, false);
+  const response = capture(); await handle({ ...request, method: 'POST' }, response, '/api/analyse');
+  assert.equal(response.status, 503); assert.equal(outbound, 0);
+});
+
+test('simultaneous local AI calls are rejected while the first provider request is pending', async t => {
+  let release, started;
+  const begun = new Promise(resolve => { started = resolve; });
+  const { post } = await serverFixture(t, { env: { PROMPTWISE_AI_ENABLED: 'true', OPENAI_API_KEY: 'fixture' }, fetchImpl: async () => { started(); return new Promise(resolve => { release = () => resolve(complete(analysis())); }); } });
+  const first = post(input); await begun;
+  try { assert.equal((await post(input)).status, 429); }
+  finally { release(); }
+  assert.equal((await first).status, 200);
+});

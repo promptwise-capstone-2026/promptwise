@@ -3,7 +3,7 @@
 Implemented against baseline b061ec2. This records integration evidence, not
 live model accuracy or assessment results.
 
-- `npm test`: 44/44 pass on the actual project. Tests use simulated provider
+- `npm test`: 46/46 pass on the actual project. Tests use simulated provider
   responses; they make no OpenAI calls or incur API charges.
 - Nine focused headless-Chromium groups passed: local default; AI text disclosure;
   consent blocking transmission; seven-criterion AI rendering; source text in an
@@ -12,6 +12,7 @@ live model accuracy or assessment results.
 - Reviewed the Home screenshot at 375px. Broader responsive/device coverage from
   the previous material milestone is not a claim that every new AI state has been
   tested on every device. Safari, Firefox, real phones and screen readers remain open.
+- Remote-call denial and simultaneous-request rejection were also verified.
 - Static allowlist includes the browser AI client only. Backend modules, `.env`,
   private references and Git metadata remain inaccessible through the static server.
 - Service-worker cache bumped to v7 and includes the client module. `/api/*` is
