@@ -138,3 +138,20 @@ Cache v10. Local tests 48/48, 61 focused browser assertions, 30 layout states an
 nine axe scans (zero detected violations) passed using synthetic/mocked inputs.
 No paid requests or push. See docs/DESKTOP_LAYOUT_REVIEW.md for exact coverage,
 CSS fallback and outstanding browser/assistive-technology limitations.
+
+### Example emphasis and progress-loss protection — 10 October 2026
+
+User requested yellow example emphasis, restored red restart styling and warnings
+before current progress is cleared. Restart now confirms even for copied or
+unedited drafts. Conditional native unload protection covers reload/leave while
+work exists; browser text is generic and mobile/crash limits remain. Footer states
+that progress is in memory only. Cache v11. Existing 48 tests, 25 focused browser
+assertions and six axe scans (zero detected violations) passed without paid calls.
+See docs/PROGRESS_PROTECTION_REVIEW.md.
+
+The user proposed learning history and a dashboard. The supplied report's Scope
+table excludes long-term prompt history/analytics, although the learning objective
+supports reflective guidance. docs/LEARNING_DASHBOARD_PROPOSAL.md proposes a
+limited opt-in device-only version before accounts, with supportive task-aware
+patterns, separate evaluation modes and examples excluded from progress. This is
+not implemented or an agreed scope change; team/supervisor discussion remains.

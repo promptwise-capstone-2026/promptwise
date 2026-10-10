@@ -101,6 +101,27 @@ function announce(message) {
   window.setTimeout(() => { announcer.textContent = message; }, 30);
 }
 
+// Current sessions are in memory only; copying a draft does not save the analysis or inputs.
+function hasSessionProgress() {
+  return Boolean(state.taskId || clean(state.original) || state.analysis || state.draft
+    || state.analysing || state.generating || Object.keys(state.files).length
+    || Object.values(state.details).some(value => clean(value))
+    || Object.values(state.preferences).some(value => clean(value)));
+}
+let unloadWarningAttached = false;
+function warnBeforeUnload(event) {
+  if (!hasSessionProgress()) return;
+  event.preventDefault();
+  event.returnValue = true; // Legacy support; the browser chooses the dialog text.
+}
+function syncUnloadWarning() {
+  const needed = hasSessionProgress();
+  if (needed === unloadWarningAttached) return;
+  if (needed) window.addEventListener('beforeunload', warnBeforeUnload);
+  else window.removeEventListener('beforeunload', warnBeforeUnload);
+  unloadWarningAttached = needed;
+}
+
 // ---------- Workflow inputs ----------
 
 function analysisInput() {
@@ -179,6 +200,7 @@ function siteFooter() {
       <a href="#how-it-works" data-nav="how-it-works">How it works</a>
     </nav>
     <p class="site-footer-note">UTS Information Systems Capstone · 2026</p>
+    <p class="session-note">Progress stays in this tab only. Refreshing or starting again clears it.</p>
   </footer>`;
 }
 
@@ -608,8 +630,8 @@ function compareScreen() {
           <button class="restart-button" type="button" data-action="restart" data-fk="restart">Improve another prompt</button>
           <p class="copy-message${state.copy.kind ? ` is-${state.copy.kind}` : ''}" id="copy-message">${esc(state.copy.text)}</p>
           ${state.confirmRestart ? `<div class="confirm-bar" role="group" aria-labelledby="restart-message">
-            <p id="restart-message">Start again? Your edited prompt has not been copied and will be cleared.</p>
-            <div class="confirm-actions"><button type="button" class="secondary-button" data-action="confirm-restart" data-fk="confirm-restart">Start again</button><button type="button" class="ghost-button" data-action="cancel-restart" data-fk="cancel-restart">Stay here</button></div>
+            <p id="restart-message">Start a new prompt? Your current task, prompt, details, materials, evaluation and improved prompt will be cleared. There is no saved history yet. Copy anything you want to keep before continuing.</p>
+            <div class="confirm-actions"><button type="button" class="secondary-button" data-action="confirm-restart" data-fk="confirm-restart">Clear progress and start again</button><button type="button" class="ghost-button" data-action="cancel-restart" data-fk="cancel-restart">Stay here</button></div>
           </div>` : ''}
         </div>
       </section>
@@ -719,6 +741,7 @@ function render({ enter = '' } = {}) {
   }
   app.innerHTML = `<a class="skip-link" href="#main" data-skip-main data-fk="skip-main">Skip to main content</a><div class="app-shell ${state.page === 'about' ? 'page-about' : `screen-${state.screen}`}">${body}${siteFooter()}</div>`;
   autosizeAll();
+  syncUnloadWarning();
   // Only the incoming screen moves, so there is never a second live copy of a form.
   if (enter) app.querySelector('main')?.classList.add(`enter-${enter}`);
   if (key) {
@@ -1167,7 +1190,7 @@ function loadExample() {
 }
 
 function restart(force = false) {
-  if (!force && draftEdited()) {
+  if (!force && hasSessionProgress()) {
     state.confirmRestart = true;
     render();
     app.querySelector('[data-fk="confirm-restart"]')?.focus();
@@ -1501,6 +1524,9 @@ app.addEventListener('toggle', event => {
   // Text areas inside a closed disclosure have no size yet.
   if (event.target.open) autosizeAll(event.target);
 }, true);
+
+document.addEventListener('input', syncUnloadWarning);
+document.addEventListener('change', syncUnloadWarning);
 
 window.addEventListener('popstate', event => {
   if (!event.state) {

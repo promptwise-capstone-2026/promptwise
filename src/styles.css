@@ -398,10 +398,10 @@ select.text-field { appearance: none; padding-right: 40px; background-image: lin
 .responsible-note { margin-top: 18px; padding: 12px 14px; border-radius: var(--radius-sm); background: var(--soft); border: 1px solid var(--line); font-size: .92rem; line-height: 1.5; color: var(--ink-2); }
 .restart-button {
   min-height: 54px; border-radius: 12px; padding: 10px 16px;
-  background: var(--surface); border: 2px solid var(--control-line);
+  background: var(--missing-bg); border: 2px solid var(--missing-line);
   font-size: 1.12rem; font-weight: 750;
 }
-.restart-button:hover { background: var(--soft); }
+.restart-button:hover { background: #ffd9dc; }
 .loading-panel { margin-top: 20px; padding: 18px; border-radius: var(--radius-sm); background: var(--soft); display: flex; align-items: center; gap: 12px; font-weight: 650; }
 
 /* ---------- Larger screens ---------- */
@@ -513,10 +513,12 @@ select.text-field { appearance: none; padding-right: 40px; background-image: lin
 .engine-controls input[type="checkbox"] { width: 18px; height: 18px; vertical-align: middle; margin-right: 6px; }
 
 /* Example loader stays in the page flow, clear of mobile actions. */
-.example-panel { margin: 20px 0; padding: 18px; display: grid; gap: 12px; }
+.example-panel { margin: 20px 0; padding: 20px; display: grid; gap: 12px; background: #fff8db; border: 1.5px solid #b07b00; border-left: 6px solid #b07b00; box-shadow: 0 3px 12px rgba(113, 68, 0, .07); }
 .example-panel h2 { font-size: 1.05rem; }
 .example-panel .field-help, .example-panel p { margin: 0; }
-.example-panel .secondary-button { justify-self: start; max-width: 100%; }
+.example-panel .secondary-button { justify-self: start; max-width: 100%; background: #ffdc70; border-color: #8a6100; color: var(--ink); }
+.example-panel .secondary-button:hover { background: #ffcf40; }
+.session-note { flex: 1 1 100%; font-size: .82rem; }
 .example-loaded { color: var(--ink-2); font-size: .9rem; }
 
 .team-card { align-content: start; gap: 10px; overflow-wrap: anywhere; }
