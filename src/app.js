@@ -778,10 +778,15 @@ const ABOUT_STEPS = [
 ];
 // Responsibilities supplied by the team; these do not certify completion of planned tests.
 const TEAM = [
-  { name: 'Luu Quoc Thai Tran', role: 'Application development & technical integration', responsibilities: 'System architecture, prompt-framework implementation, application development, AI/API integration, evaluation planning and overall project integration.' },
-  { name: 'Noah Holt', role: 'Prompt engineering research', responsibilities: 'GenAI in higher education, prompt-engineering principles and prompt quality, existing-tool research, test prompts/use cases and related literature review contributions.' },
-  { name: 'Angela Liu', role: 'UX & student learning', responsibilities: 'Student use of GenAI and AI-assisted learning, user requirements, mobile UI and user flows, wireframes and usability-test planning.' }
+  { id: 'thai', initials: 'TT', photo: '/public/team/thai.jpeg', name: 'Luu Quoc Thai Tran', role: 'Application development & technical integration', responsibilities: 'System architecture, prompt-framework implementation, application development, AI/API integration, evaluation planning and overall project integration.' },
+  { id: 'noah', initials: 'NH', photo: '', name: 'Noah Holt', role: 'Prompt engineering research', responsibilities: 'GenAI in higher education, prompt-engineering principles and prompt quality, existing-tool research, test prompts/use cases and related literature review contributions.' },
+  { id: 'angela', initials: 'AL', photo: '', name: 'Angela Liu', role: 'UX & student learning', responsibilities: 'Student use of GenAI and AI-assisted learning, user requirements, mobile UI and user flows, wireframes and usability-test planning.' }
 ];
+
+// Portraits repeat the adjacent name visually; decorative avatars avoid duplicate announcements.
+function teamAvatar(member) {
+  return `<span class="team-avatar" data-avatar="${esc(member.id)}" aria-hidden="true">${member.photo ? `<img src="${esc(member.photo)}" alt="" width="96" height="96" decoding="async">` : `<span class="team-initials">${esc(member.initials)}</span>`}</span>`;
+}
 
 function aboutPage() {
   return `<header class="page-head about-head">
@@ -810,13 +815,13 @@ function aboutPage() {
     </section>
     <section class="about-section" aria-labelledby="about-team">
       <h2 id="about-team">Team &amp; responsibilities</h2>
-      <ul class="team-grid">${TEAM.map(member => `<li class="surface team-card"><h3 class="team-name">${esc(member.name)}</h3><p class="team-role">${esc(member.role)}</p><p>${esc(member.responsibilities)}</p></li>`).join('')}</ul>
+      <ul class="team-grid">${TEAM.map(member => `<li class="surface team-card"><div class="team-identity">${teamAvatar(member)}<h3 class="team-name">${esc(member.name)}</h3></div><p class="team-role">${esc(member.role)}</p><p>${esc(member.responsibilities)}</p></li>`).join('')}</ul>
       <p><strong>Shared work:</strong> We carried out the Design Thinking process together. Existing-tool review is shared, with Noah focusing on prompt engineering research. All three team members contribute to testing, meetings, presentations, discussion and conclusions, and final-report review.</p>
       <p>Developed as part of <strong>41195 Information Systems Capstone</strong> at the <strong>University of Technology Sydney</strong>, 2026.</p>
     </section>
     <section class="surface about-section" aria-labelledby="about-supervision">
       <h2 id="about-supervision">Project supervision</h2>
-      <p class="team-name">Dr Amara Atif — Project supervisor</p>
+      <div class="team-identity">${teamAvatar({ id: 'amara-atif', photo: '/public/team/amara-atif.jpeg' })}<p class="team-name">Dr Amara Atif — Project supervisor</p></div>
       <p>We thank Dr Amara Atif for her guidance and feedback on the project's scope and development.</p>
     </section>
     <section class="surface about-section" aria-labelledby="about-responsible">

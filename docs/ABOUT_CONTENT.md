@@ -105,8 +105,14 @@ copied manually into the student's chosen tool.
   Noah also has GenAI in Higher Education. Preserve those shared contributions.
 - Appendix B in the supplied report is still a contribution-table template. Fill
   it later using actual work/evidence, including AI assistance where applicable.
-- Portraits and profile URLs have not been supplied yet; add the actual assets
-  later. Do not substitute generic or invented portraits.
+- Thai and Amara portraits are supplied in `public/team/thai.jpeg` and
+  `public/team/amara-atif.jpeg`. All four avatar spaces display at 96 × 96 CSS px;
+  Noah and Angela use decorative initials while their photos are pending.
+  Preserve supplied originals; the Thai portrait uses a closer CSS display crop.
+  To add a remaining photo, save `noah.jpeg` or `angela.jpeg`, update its TEAM
+  photo path in `src/app.js`, add the exact URL to the server allowlist and
+  service-worker assets, and bump the cache. Do not cache a missing photo.
+  Profile URLs are still pending; do not substitute generic or invented portraits.
 - The authorisation to read private source files does not authorise publishing
   their contents, student numbers, emails or downloadable originals.
 - Personal portfolio, CV and LinkedIn links can be added after the team supplies

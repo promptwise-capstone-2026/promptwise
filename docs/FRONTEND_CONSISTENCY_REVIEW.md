@@ -154,3 +154,11 @@ prompt; a smaller minimum height would look tidier.
 User-reported Safari screenshot showed a large unused strip on the desktop About & team page. The cause was `.about { max-width: 860px; }` inside the wider application shell. Changed that cap to `100%` so the content, section cards and divider align with the header and footer content edges. Existing three-column team cards remain intact. Cache bumped to `promptwise-v17`.
 
 Focused verification in isolated Chromium: widths 320, 375, 768, 960, 1440 and 1920 px; all About sections reach the available content edge, no horizontal overflow, no console errors. Visually inspected screenshots at 375 and 1440 px. Root-font resizing to 200% did not overflow; Return to prompt and History navigation passed. No JavaScript or application behaviour changed, so the full regression suite was not repeated for this CSS-only correction. Safari remains a user manual check. No paid API calls or saved-user-data changes.
+
+## Team portraits and pending-photo frames — 10 October 2026
+
+Added the user-supplied `thai.jpeg` and `amara-atif.jpeg` portraits to About & team, with matching NH/AL initials for Noah and Angela while their photos are pending. All four circular avatars have explicit 96 × 96 CSS-pixel dimensions. The full-length Thai original is preserved and cropped visually in CSS. Decorative avatars have empty alt/aria-hidden because each name is already adjacent. Missing portraits do not request nonexistent files.
+
+Only the two supplied image URLs were added to the server's explicit allowlist, with JPEG MIME handling, and service-worker assets; cache is `promptwise-v18`. Existing server tests now cover JPEG MIME and rejection of unlisted team paths. `npm test`: 56/56 passed. `git diff --check`: clean.
+
+Isolated Chromium verification: photos load, matching avatar dimensions and NH/AL placeholders at 320, 375, 768 and 1440 px; no horizontal overflow, including 200% root-font resizing. Screenshots at 375 and 1440 inspected. About axe A/AA scan: zero violations (not a conformance claim). Both portraits load after an offline refresh; Return to prompt works. No user browser data or paid API calls were used. Safari/manual screen-reader verification remains pending.

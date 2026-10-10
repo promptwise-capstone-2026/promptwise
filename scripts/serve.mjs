@@ -15,6 +15,7 @@ export const PUBLIC_PATHS = [
   '/index.html', '/sw.js', '/src/app.js', '/src/styles.css',
   '/src/practice.js', '/src/practice-view.js', '/src/tasks.js', '/src/examples.js', '/src/rules.js', '/src/guidance.js',
   '/src/validation.js', '/src/workflow.js', '/src/ai-client.js', '/src/materials.js', '/src/document-materials.js',
+  '/public/team/thai.jpeg', '/public/team/amara-atif.jpeg',
   '/public/icon.svg', '/public/manifest.webmanifest', '/public/vendor/manifest.json', ...vendorAssets
 ];
 const publicPaths = new Set(PUBLIC_PATHS);
@@ -25,6 +26,7 @@ const types = {
   '.mjs': 'text/javascript; charset=utf-8',
   '.json': 'application/json; charset=utf-8',
   '.svg': 'image/svg+xml',
+  '.jpeg': 'image/jpeg',
   '.webmanifest': 'application/manifest+json'
 };
 

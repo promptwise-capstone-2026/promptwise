@@ -525,6 +525,13 @@ select.text-field { appearance: none; padding-right: 40px; background-image: lin
 .team-card { align-content: start; gap: 10px; overflow-wrap: anywhere; }
 .team-card h3 { margin: 0; font-size: 1.05rem; line-height: 1.4; }
 .team-role { font-weight: 650; color: var(--ink); }
+.team-identity { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.team-identity .team-name { flex: 1 1 140px; min-width: 0; overflow-wrap: anywhere; }
+.team-avatar { flex: 0 0 96px; width: 96px; height: 96px; display: grid; place-items: center; overflow: hidden; border-radius: 50%; border: 1px solid var(--line); background: var(--soft); color: var(--ink-2); }
+.team-avatar img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.team-avatar[data-avatar="thai"] img { object-position: 50% 15%; transform: scale(1.8); transform-origin: 50% 25%; }
+.team-initials { font-size: 1.5rem; font-weight: 750; letter-spacing: .02em; }
+
 
 /* Keyboard users can bypass the repeated header and progress navigation. */
 .skip-link { position: fixed; top: 10px; left: 10px; z-index: 100; transform: translateY(-200%); padding: 12px 18px; border-radius: 8px; background: var(--ink); color: #fff; font-weight: 700; }
