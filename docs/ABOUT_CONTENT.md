@@ -37,9 +37,12 @@ constraints, output format, audience/level and input/source material. Tone and
 response depth are optional preferences. The purpose is to make prompt choices
 understandable while keeping the student in control.
 
-The current prototype uses local rules and assembles a draft from the student's
-input. It does not use AI. Any future AI-assisted version will identify how its
-analysis and rewrite were produced.
+Local rules mode checks wording and assembles a draft in the browser without AI.
+When configured for local testing, OpenAI mode analyses and rewrites prompts
+using the same seven criteria. You choose the mode before starting, and each
+result identifies its mode. AI findings can be wrong. Only an explicit Analyse
+or Create action sends the selected text to OpenAI, after you agree. Original
+files and images are not uploaded. The final prompt is still copied manually.
 
 ### Meet the team
 

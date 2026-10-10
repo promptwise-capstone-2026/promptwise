@@ -78,3 +78,13 @@
 - Prototype choices: documents 10 MB, TXT/MD 1 MB, 120,000 extracted characters per file, PDF/PPTX 100 pages/slides, Office expansion 20 MB and a 30-second document extraction timeout. These are implementation limits, not report requirements. DOCX includes body/table text and notes; PPTX includes shape/table text and speaker notes. Extraction omissions are disclosed.
 - The server explicitly lists generated local parser assets and supports their module MIME type. Service-worker cache is `promptwise-v6`; generated vendor files and installed packages are ignored. Node 22.13+ is required by the selected parser (this Mac already has Node 24). Run npm ci --omit=optional after cloning or dependency updates, then npm run dev.
 - The original report/contract and private references remain unchanged. This correction adds document intake and task guidance, not an AI adapter or deployment.
+
+## 10 October — Local AI integration and private GitHub preparation
+
+The user reports a personal OpenAI US$10 top-up and authorises a private GitHub
+repository under tlqthai111. Local AI analysis and rewriting are now implemented
+behind a server-side key, explicit mode selection and text disclosure. The default
+remains local rules. Model snapshot and request limits are implementation choices.
+Mock tests do not establish live model quality. Remote AI is disabled pending
+hosted access and durable usage controls; a public demo/domain is optional and
+not a completed production requirement. See docs/AI_SETUP_AND_RELEASE.md.

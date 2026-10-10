@@ -4,6 +4,31 @@ import { validateInput } from './validation.js';
 
 // Public mode descriptions travel with the adapter, so the UI cannot mislabel a future AI result.
 export const WORKFLOW_MODES = {
+  openai: {
+    tag: 'AI rewrite', pill: 'OpenAI review',
+    notes: {
+      analysis: {
+        title: 'AI-assisted review.',
+        summary: 'OpenAI reviewed your original prompt using PromptWise’s seven task-aware criteria.',
+        disclosure: 'How this review works',
+        details: [
+          'The criteria come from the project’s research-informed framework. The AI applies them and can make mistakes; the results are not a validated measure of prompt quality.',
+          'Each finding explains its judgement and suggests useful information. Not every criterion applies to every task.',
+          'Your original prompt and custom task description were sent through the PromptWise server to OpenAI. Later personalisation details do not alter this first diagnosis.'
+        ]
+      },
+      compare: {
+        title: 'AI-assisted rewrite.',
+        summary: 'OpenAI rewrote your prompt using your supplied details and optional preferences.',
+        disclosure: 'How this rewrite works',
+        details: [
+          'Your prompt, details and accepted source text were sent through the PromptWise server to OpenAI. Original files, pictures and video were not sent.',
+          'The rewrite may miss details or introduce errors. Check that it preserves your intent, facts and assessment requirements, then edit it before copying.',
+          'PromptWise does not submit this prompt to another tool or complete the academic task. API requests use store: false; this does not guarantee zero provider retention.'
+        ]
+      }
+    }
+  },
   'local-rules': {
     tag: 'Local draft', pill: 'Local rules',
     notes: {

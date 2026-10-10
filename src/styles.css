@@ -510,3 +510,7 @@ select.text-field { appearance: none; padding-right: 40px; background-image: lin
 /* Local document extraction preview */
 .material-preview { min-height: 180px; max-height: 360px; resize: vertical; overflow-y: auto; font-size: .92rem; }
 .file-warnings { padding-left: 20px; margin: 8px 0; color: var(--ink-2); font-size: .86rem; display: grid; gap: 5px; }
+
+.engine-controls { margin: 20px 0; padding: 20px; }
+.engine-controls select { width: 100%; }
+.engine-controls input[type="checkbox"] { width: 18px; height: 18px; vertical-align: middle; margin-right: 6px; }

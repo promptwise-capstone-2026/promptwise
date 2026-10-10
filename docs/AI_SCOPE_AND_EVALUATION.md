@@ -42,23 +42,29 @@ methodology; this local note does not amend a submitted document.
 
 ## Current implementation versus planned implementation
 
-- Current: a local rules engine and assembled draft, with task/form validation,
-  guidance helpers and in-memory TXT/MD reading. The five-screen frontend is
-  wired and reviewed at implementation commit `f3a6acb`. No OpenAI calls or AI
-  rewrite have been implemented.
-- Planned: genuine internal AI analysis and rewriting through a backend, with
-  server-side credentials, validated responses, clear loading/failure states
-  and an editable result. The interface must identify which mode produced a
-  result. An API failure must not silently present a local draft as AI output.
-- Undecided implementation choices: model, API response contract, usage limits,
-  PDF/Word/image processing and retention policy for an AI mode. The current
-  browser-only handling must not be described as unchanged once selected
-  prompt content is sent to the API.
+- Completed baseline: five screens, all six task branches, transparent local rules,
+  editable comparison, accessible About navigation and browser extraction of
+  TXT/MD/PDF/DOCX/PPTX text. Scans, images, diagrams and video are not interpreted.
+- Implemented for local testing on 10 October: server-side OpenAI Responses
+  adapter for seven-criterion analysis and rewriting, structured output and
+  response validation, explicit mode selection and data disclosure, error handling,
+  request cancellation, input/output limits and an attempts allowance.
+- Live AI quality, latency, cost and account/model availability remain unverified
+  until the personal project key is configured and representative cases are run.
+  Mock integration results are not model-effectiveness evidence.
+- The trial model is `gpt-4.1-mini-2025-04-14`, a configurable implementation
+  choice rather than a report requirement or a claim that it is the best model.
+- Only accepted text is sent when an AI action is selected after agreement.
+  Original files remain in the browser. Server code does not persist prompt
+  content. `store: false` is requested; provider retention policies still apply.
+- Remote AI access is disabled for this milestone. Hosted AI requires authenticated
+  access, durable usage controls, operational checks and accurate privacy copy.
+  A public demo is an optional extension; the supplied report lists a
+  production-ready public deployment out of scope.
+- The user authorised a private GitHub repository under `tlqthai111` on 10 October.
+  Actual remote/upload status must be checked rather than inferred from this note.
 - Still undecided research choice: Copilot-only downstream evaluation versus a
   small comparison of tools. Internal API support does not settle that choice.
-- The 10 October attachment proposal and next frontend brief are documented in
-  `ATTACHMENT_PLAN.md` and `UX_REFINEMENT_HANDOFF.md`. They describe proposed
-  work, not completed capabilities or revised submitted-report requirements.
 
 ## Work that demonstrates the project's contribution
 
@@ -105,16 +111,14 @@ findings; API access alone does not demonstrate those contributions.
 
 ## Next milestones
 
-1. Claude completes the agreed frontend milestone using the existing helper
-   interfaces; Codex reviews and integrates it.
-2. Codex defines the AI backend contract and evaluation instructions from this
-   scope, then implements analysis and rewriting with failure handling. Keep
-   the local engine as a labelled baseline for comparison.
-3. Configure the user's personal API credentials outside Git when live testing
-   is ready. Never include a real key in browser code, handoff text or chat.
-4. Run live cases and usability evaluation, record evidence and revise the
-   report to describe the actual implementation and results.
+1. Configure the personal project API key outside Git and run a small local smoke
+   test with non-confidential examples. Record tokens, latency and failures.
+2. Collect independent diagnostic and rewrite judgements and student usability
+   evidence using the protocol above. Keep the labelled local engine for comparison.
+3. Finish private GitHub backup and CI verification; prepare a hosted demo only
+   after choosing its access and cost controls. A custom domain can follow later.
+4. Update the report's scope, architecture, methods, actual results and limitations.
 
-The learning contract's recorded testing milestone is 9 October, with the draft
-report on 16 October and final submission on 23 October. Do not silently change
-these dates or claim a future AI milestone has already been completed.
+The learning contract's testing milestone was 9 October, with the draft report
+on 16 October and final submission on 23 October. Do not silently change these
+dates or claim that live AI evaluation has already been completed.

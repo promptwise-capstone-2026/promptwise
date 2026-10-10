@@ -48,7 +48,7 @@ test('private material and non-browser artifacts are denied regardless of path c
     '/%70rivate%2Freferences%2Freport.fig', '/private//references/report.fig',
     '/%2570rivate/references/report.fig', '/src/../Private/references/report.fig',
     '/.env', '/.git/config', '/README.md', '/docs/FRONTEND_REVIEW.md',
-    '/tests/server.test.mjs', '/Scripts/serve.mjs', '/api/analysis',
+    '/tests/server.test.mjs', '/Scripts/serve.mjs', '/api/analysis', '/server/openai.mjs', '/server/api.mjs',
     '/node_modules/pdfjs-dist/build/pdf.mjs', '/public/vendor/unknown.mjs', '/public/vendor/.env'
   ]) {
     const response = await fetch(url + path);

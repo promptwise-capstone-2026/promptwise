@@ -1,3 +1,4 @@
+import { createApiHandler } from '../server/api.mjs';
 import { createServer } from 'node:http';
 import { readFile, realpath, stat } from 'node:fs/promises';
 import { dirname, extname, resolve } from 'node:path';
@@ -13,7 +14,7 @@ if (!Array.isArray(vendorAssets) || vendorAssets.some(path => !/^\/public\/vendo
 export const PUBLIC_PATHS = [
   '/index.html', '/sw.js', '/src/app.js', '/src/styles.css',
   '/src/tasks.js', '/src/rules.js', '/src/guidance.js',
-  '/src/validation.js', '/src/workflow.js', '/src/materials.js', '/src/document-materials.js',
+  '/src/validation.js', '/src/workflow.js', '/src/ai-client.js', '/src/materials.js', '/src/document-materials.js',
   '/public/icon.svg', '/public/manifest.webmanifest', '/public/vendor/manifest.json', ...vendorAssets
 ];
 const publicPaths = new Set(PUBLIC_PATHS);
@@ -27,9 +28,12 @@ const types = {
   '.webmanifest': 'application/manifest+json'
 };
 
-export function createAppServer({ root = projectRoot } = {}) {
-  return createServer(async (request, response) => {
+export function createAppServer({ root = projectRoot, apiOptions } = {}) {
+  const api = createApiHandler(apiOptions);
+  return createServer({ requestTimeout: 15000, headersTimeout: 10000 }, async (request, response) => {
     try {
+      const apiPath = new URL(request.url, 'http://localhost').pathname;
+      if (await api(request, response, apiPath)) return;
       if (!['GET', 'HEAD'].includes(request.method)) {
         response.writeHead(405, { Allow: 'GET, HEAD' }).end('Method not allowed');
         return;
@@ -66,7 +70,9 @@ export function createAppServer({ root = projectRoot } = {}) {
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const port = Number(process.env.PORT || 4173);
-  createAppServer().listen(port, '127.0.0.1', () => {
-    console.log(`PromptWise is running at http://127.0.0.1:${port}`);
+  const host = process.env.HOST || '127.0.0.1';
+  if (process.env.PROMPTWISE_AI_ENABLED === 'true' && !['127.0.0.1', 'localhost', '::1'].includes(host)) throw new Error('This milestone supports AI on localhost only. Configure hosted access and durable usage controls before enabling public AI.');
+  createAppServer().listen(port, host, () => {
+    console.log(`PromptWise is running at http://${host}:${port}`);
   });
 }

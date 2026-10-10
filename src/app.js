@@ -1,3 +1,4 @@
+import { getAIConfiguration, runAI } from './ai-client.js';
 import { TASKS, FORMATS, LEVELS, TONES, DEPTHS, PREFERENCE_LABELS, getDetailLabel } from './tasks.js';
 import { validateInput, CUSTOM_TASK_MAX_LENGTH, getValidationFieldMeta } from './validation.js';
 import { analyseWorkflow, improveWorkflow, WorkflowValidationError, WORKFLOW_MODES as MODE_LABELS, analysisFingerprint as analysisKeyOf } from './workflow.js';
@@ -50,6 +51,30 @@ const blankState = () => ({
 });
 
 let state = blankState();
+let engine = 'local-rules';
+let aiConfig = { aiAvailable: false };
+let aiConsent = false;
+const workflowRequests = new Set();
+function stopWorkflowRequests() {
+  for (const controller of workflowRequests) controller.abort();
+  workflowRequests.clear();
+}
+async function runWorkflow(operation, input) {
+  if (engine !== 'openai') return operation === 'analyse' ? analyseWorkflow(input) : improveWorkflow(input);
+  if (!aiConsent) throw new Error('Confirm that you agree to send the selected text to OpenAI before continuing.');
+  const controller = new AbortController();
+  workflowRequests.add(controller);
+  try { return await runAI(operation, input, { signal: controller.signal }); }
+  finally { workflowRequests.delete(controller); }
+}
+function engineControls() {
+  if (!aiConfig.aiAvailable) return '';
+  return `<section class="surface engine-controls" aria-labelledby="engine-label">
+    <label class="field-label" id="engine-label" for="engine">Review mode</label>
+    <select class="text-field" id="engine" data-engine><option value="local-rules"${engine === 'local-rules' ? ' selected' : ''}>Local rules — no AI</option><option value="openai"${engine === 'openai' ? ' selected' : ''}>OpenAI — analyse and rewrite</option></select>
+    ${engine === 'openai' ? `<p class="field-help">Analyse sends your original prompt and custom task description to OpenAI. Create sends your prompt, details, preferences and accepted source text. Original files and images are not uploaded. AI can make mistakes. Local testing model: ${esc(aiConfig.model)}.</p><label><input type="checkbox" data-ai-consent${aiConsent ? ' checked' : ''}> I agree to send this text to OpenAI when I select Analyse or Create.</label><p class="field-help">Avoid confidential information. Requests use store: false; provider retention rules still apply. <a href="https://developers.openai.com/api/docs/guides/your-data" target="_blank" rel="noopener noreferrer">OpenAI data controls</a></p>` : '<p class="field-help">Checks and draft assembly stay in this browser.</p>'}
+  </section>`;
+}
 // Bumped on task change and restart so late async results cannot reach a newer session.
 let epoch = 0;
 let analysisSeq = 0;
@@ -243,6 +268,7 @@ function home() {
   const length = description.trim().length;
   return `${header()}<main class="content" id="main">
     <h1 class="screen-title" tabindex="-1" data-fk="screen-title">What are you working on?</h1>
+    ${engineControls()}
     ${requiredNote}
     <fieldset class="task-fieldset"${describedBy(errId('taskId'))}>
       <legend class="group-label">Choose an academic task${reqMark}</legend>
@@ -269,6 +295,7 @@ function promptInput() {
   const task = taskById(state.taskId);
   return `${header()}<main class="content" id="main">
     <h1 class="screen-title" tabindex="-1" data-fk="screen-title">Improve your prompt</h1>
+    <p class="support-text">${engine === 'openai' ? 'OpenAI mode: analysing sends this prompt to OpenAI using the seven criteria. AI findings need your review.' : 'Local rules mode: checks run in your browser without AI.'}</p>
     ${requiredNote}
     <div class="field">
       <label class="field-label" for="original">What would you like AI to help you with?${reqMark}</label>
@@ -314,10 +341,10 @@ function analysisScreen() {
       </section>
       <section class="analysis-main" aria-labelledby="evaluation-heading">
         <div class="section-heading"><h2 id="evaluation-heading">Prompt evaluation</h2><p class="small-note">Seven criteria · guidance, not a score</p></div>
-        <p class="review-summary">${review.length ? `Worth reviewing: <strong>${review.map(row => esc(row.label)).join(', ')}</strong>.` : 'The local checks did not flag any active criterion. You can still add details.'}</p>
+        <p class="review-summary">${review.length ? `Worth reviewing: <strong>${review.map(row => esc(row.label)).join(', ')}</strong>.` : (result.mode === 'openai' ? 'The AI review did not flag any active criterion. Review its judgement and add details if useful.' : 'The local checks did not flag any active criterion. You can still add details.')}</p>
         ${wide ? '' : `<div class="card-tools"><p class="card-hint">Tap a criterion to see why and what to add.</p><button type="button" class="text-button" data-action="expand-all" data-fk="expand-all">${allOpen ? 'Collapse all' : 'Expand all'}</button></div>`}
         <ul class="criteria-list">${result.criteria.map(row => criterionCard(row, wide)).join('')}</ul>
-        <p class="support-text">${review.length ? 'Add the details you know on the next screen. Leave genuinely unknown information blank.' : 'The local checks found matching words or details for every active criterion. Review the prompt yourself before relying on it.'}</p>
+        <p class="support-text">${review.length ? 'Add the details you know on the next screen. Leave genuinely unknown information blank.' : (result.mode === 'openai' ? 'AI judgements can be wrong. Review the prompt yourself before relying on them.' : 'The local checks found matching words or details for every active criterion. Review the prompt yourself before relying on it.')}</p>
       </section>
     </div>
   </main>${footer('personalise', 'Improve My Prompt')}`;
@@ -499,7 +526,7 @@ function personalisationScreen() {
     ${excludedNote()}
     ${alertBox()}
     ${replaceBar()}
-  </main>${footer('generate', 'Create Improved Prompt', { busy: state.generating, busyLabel: 'Assembling…' })}`;
+  </main>${footer('generate', 'Create Improved Prompt', { busy: state.generating, busyLabel: engine === 'openai' ? 'Rewriting…' : 'Assembling…' })}`;
 }
 
 function replaceBar() {
@@ -535,14 +562,14 @@ function usedDetails(input) {
   return `<details class="used-details"${desktop.matches ? ' open' : ''}>
     <summary data-fk="used-summary">What this draft includes</summary>
     ${rows.length ? `<dl class="used-list">${rows.join('')}</dl>` : '<p>No extra details or preferences were supplied, so the draft keeps your original words.</p>'}
-    <p class="field-help">PromptWise may also add fixed wording for this task, such as asking the AI to flag claims you should verify or to request missing material.</p>
+    <p class="field-help">${engine === 'openai' ? 'The AI rewrite uses the relevant details you supplied. Unknown information should remain explicit; check for assumptions or changed meaning.' : 'PromptWise may also add fixed wording for this task, such as asking the AI to flag claims you should verify or to request missing material.'}</p>
   </details>`;
 }
 
 function compareScreen() {
   const head = `${header()}<main class="content" id="main"><h1 class="screen-title" tabindex="-1" data-fk="screen-title">Compare the prompts</h1>`;
   if (state.generating) {
-    return `${head}<div class="loading-panel" role="status"><span class="spinner" aria-hidden="true"></span>Assembling your draft…</div></main>`;
+    return `${head}<div class="loading-panel" role="status"><span class="spinner" aria-hidden="true"></span>${engine === 'openai' ? 'Rewriting your prompt…' : 'Assembling your draft…'}</div></main>`;
   }
   if (!state.draft) {
     return `${head}<div class="notice notice-error" role="alert"><p class="notice-title">The draft could not be created</p><p>${esc(state.generateError || 'Something went wrong.')}</p>
@@ -572,7 +599,7 @@ function compareScreen() {
       </section>
     </div>
     ${usedDetails(state.draft.input || input)}
-    <p class="responsible-note"><strong>Use responsibly.</strong> Check facts, sources and your assessment requirements before using any AI response. Paste this prompt into your chosen AI tool yourself; PromptWise does not send it anywhere.</p>
+    <p class="responsible-note"><strong>Use responsibly.</strong> Check facts, sources and your assessment requirements before using any AI response. Paste this prompt into your chosen AI tool yourself; PromptWise does not automatically submit the final prompt for task completion.</p>
     ${state.confirmRestart ? `<div class="confirm-bar" role="group" aria-labelledby="restart-message">
       <p id="restart-message">Start again? Your edited prompt has not been copied and will be cleared.</p>
       <div class="confirm-actions"><button type="button" class="secondary-button" data-action="confirm-restart" data-fk="confirm-restart">Start again</button><button type="button" class="ghost-button" data-action="cancel-restart" data-fk="cancel-restart">Stay here</button></div>
@@ -614,7 +641,7 @@ function aboutPage() {
     <section class="surface about-section" aria-labelledby="about-approach">
       <h2 id="about-approach">Our approach</h2>
       <p>PromptWise uses seven task-aware criteria: clarity, context, specificity, constraints, output format, audience/level and input/source material. Tone and response depth are optional preferences. The purpose is to make prompt choices understandable while keeping the student in control.</p>
-      <p>The current prototype uses local rules and assembles a draft from the student's input. It does not use AI. Any future AI-assisted version will identify how its analysis and rewrite were produced.</p>
+      <p>Local rules mode checks wording and assembles a draft in the browser without AI. When configured for local testing, OpenAI mode analyses and rewrites prompts using the same seven criteria. You choose the mode before starting, and each result identifies its mode. AI findings can be wrong. Only an explicit Analyse or Create action sends the selected text to OpenAI, after you agree. Original files and images are not uploaded. The final prompt is still copied manually.</p>
     </section>
     <section class="about-section" aria-labelledby="about-team">
       <h2 id="about-team">Meet the team</h2>
@@ -875,6 +902,7 @@ function hasTaskDetails() {
 
 function applyTask(id) {
   stopMaterialReads();
+  stopWorkflowRequests();
   epoch += 1;
   // Requests from the previous task are now stale; their results are ignored, so clear their busy flags too.
   state.analysing = false;
@@ -937,7 +965,7 @@ async function analyse() {
   let result = null;
   let failure = null;
   try {
-    result = await analyseWorkflow(input);
+    result = await runWorkflow('analyse', input);
   } catch (error) {
     failure = error;
   }
@@ -959,7 +987,7 @@ async function analyse() {
   if (result && current) return navigate(2);
   if (failure instanceof WorkflowValidationError) return showErrors(failure.fields);
   if (failure) {
-    state.alert = 'The analysis could not be completed. Your prompt is unchanged; try again.';
+    state.alert = engine === 'openai' ? failure.message : 'The analysis could not be completed. Your prompt is unchanged; try again.';
     announce(state.alert);
   } else {
     announce('Your prompt changed during the analysis. Select Analyse Prompt again.');
@@ -1015,11 +1043,11 @@ async function generate({ replace = false } = {}) {
   state.generating = true;
   state.generateError = '';
   navigate(4);
-  announce('Assembling your draft…');
+  announce(engine === 'openai' ? 'Rewriting your prompt with OpenAI…' : 'Assembling your draft…');
   let draft = null;
   let failure = null;
   try {
-    draft = await improveWorkflow(input);
+    draft = await runWorkflow('improve', input);
   } catch (error) {
     failure = error;
   }
@@ -1038,7 +1066,7 @@ async function generate({ replace = false } = {}) {
   } else if (failure instanceof WorkflowValidationError) {
     if (state.screen === 4) return showErrors(failure.fields);
   } else {
-    state.generateError = 'The draft could not be assembled. Your prompt, details and preferences are unchanged.';
+    state.generateError = engine === 'openai' ? failure?.message || 'The AI rewrite failed. Your input is unchanged.' : 'The draft could not be assembled. Your prompt, details and preferences are unchanged.';
   }
   if (state.page !== 'workflow') return;
   if (state.screen === 4) {
@@ -1100,6 +1128,7 @@ function restart(force = false) {
     return;
   }
   stopMaterialReads();
+  stopWorkflowRequests();
   epoch += 1;
   analysisSeq += 1;
   generateSeq += 1;
@@ -1312,6 +1341,12 @@ app.addEventListener('click', event => {
 app.addEventListener('input', event => {
   const target = event.target;
   if (target.matches('[data-original]')) {
+    if (state.analysing || state.generating) {
+      stopWorkflowRequests(); analysisSeq += 1; generateSeq += 1;
+      state.analysing = false; state.generating = false;
+      const button = app.querySelector('[data-action="analyse"]');
+      if (button) { button.disabled = false; button.textContent = 'Analyse Prompt'; }
+    }
     state.original = target.value;
     clearFieldError('original');
     refreshStepper();
@@ -1328,6 +1363,7 @@ app.addEventListener('input', event => {
     state.details[key] = target.value;
     clearFieldError(key);
     if (key === 'taskDescription') {
+      stopWorkflowRequests(); analysisSeq += 1; generateSeq += 1; state.analysing = false; state.generating = false;
       refreshStepper();
       const length = target.value.trim().length;
       const count = document.getElementById('task-description-count');
@@ -1379,7 +1415,20 @@ app.addEventListener('input', event => {
 
 app.addEventListener('change', event => {
   const target = event.target;
-  if (target.matches('.task-radio')) {
+  if (target.matches('[data-engine]')) {
+    if (target.value === engine) return;
+    if ((state.analysis || state.draft || state.analysing || state.generating) && !window.confirm('Change review mode? Existing analysis and draft will be cleared. Your prompt, details and files are kept.')) { target.value = engine; return; }
+    stopWorkflowRequests();
+    analysisSeq += 1; generateSeq += 1;
+    engine = target.value === 'openai' ? 'openai' : 'local-rules';
+    aiConsent = false;
+    state.analysis = null; state.analysisKey = ''; state.personalisedKey = '';
+    state.draft = null; state.improved = ''; state.copiedValue = null; state.copy = { text: '', kind: '' }; state.expanded = new Set(); state.groupOpen = {};
+    state.analysing = false; state.generating = false; state.generateError = ''; state.alert = '';
+    render(); app.querySelector('#engine')?.focus();
+  } else if (target.matches('[data-ai-consent]')) {
+    aiConsent = target.checked;
+  } else if (target.matches('.task-radio')) {
     selectTask(target.value, target);
   } else if (target.matches('[data-file-input]')) {
     const file = target.files?.[0];
@@ -1474,3 +1523,6 @@ if (isAboutHash()) {
   render();
 }
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' }).catch(() => {});
+
+// Configuration contains no credentials and is never cached by the service worker.
+getAIConfiguration().then(config => { aiConfig = config; if (state.page === 'workflow' && state.screen === 0) render(); });

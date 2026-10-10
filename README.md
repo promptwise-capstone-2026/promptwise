@@ -1,6 +1,6 @@
-# PromptWise local prototype
+# PromptWise
 
-PromptWise helps students inspect and improve a prompt before copying it into a generative AI tool. This version uses a transparent, task-aware rules engine. It makes no AI API calls and sends no prompt or selected-file data to a server.
+PromptWise helps students inspect and improve a prompt before copying it into a generative AI tool. Local rules mode is the default and keeps prompt processing in the browser. Optional OpenAI analysis and rewriting are implemented for local testing after configuring a server-side key. AI mode sends selected text only after explicit agreement and action; each result identifies its mode.
 
 ## Run on this Mac
 
@@ -25,3 +25,16 @@ The source diagnosis still depends on the task: a general study explanation can 
 The report and learning contract are stored in `private/references/` on this Mac and excluded from Git. See [PROJECT_NOTES.md](PROJECT_NOTES.md) and [the personalisation/material review](docs/PERSONALISATION_MATERIALS_REVIEW.md) for requirements, implementation choices and limits. Keep reports, learning contracts, `.env` files, exported designs, dependencies and generated parser assets out of Git.
 
 This repository is local only. Nothing is published or pushed by setup or development commands.
+
+## Optional local AI testing
+
+See [AI setup and release guide](docs/AI_SETUP_AND_RELEASE.md). Copy `.env.example`
+to `.env`, set your personal project key and `PROMPTWISE_AI_ENABLED=true`, then
+restart the server. Never commit or paste a real key into chat. Choose OpenAI
+mode on Home and agree to the text disclosure before analysing. You can keep
+using local rules without a key. Live model quality has not yet been verified.
+
+`npm start` also prepares local parser assets. Hosting uses a Node web service,
+with `HOST=0.0.0.0` and the provider's `PORT`. Remote AI is unavailable at this
+milestone; hosted AI needs access and durable usage controls before activation.
+The `.github/workflows/checks.yml` workflow runs non-billable tests when uploaded.
