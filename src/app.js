@@ -16,8 +16,20 @@ const STATUS = {
   'N/A': { cls: 'na', icon: '–', spoken: 'not applicable' }
 };
 
+// Sentence-length answers use growing text areas; these short values stay single-line inputs.
+// A shared field kind (short / sentence / material) would let guidance.js own this choice.
+const SHORT_FIELDS = new Set(['language', 'targetLength', 'duration']);
+const GROW_MAX_LINES = 8;
+
 const blankState = () => ({
+  page: 'workflow',
   screen: 0,
+  // Progress milestones: what was established by an explicit action, keyed to the inputs it used.
+  continuedKey: '',
+  personalisedKey: '',
+  stepHint: '',
+  returnTo: null,
+  groupOpen: {},
   taskId: '',
   pendingTask: '',
   original: '',
@@ -29,7 +41,6 @@ const blankState = () => ({
   analysisKey: '',
   analysing: false,
   expanded: new Set(),
-  optionalOpen: null,
   files: {},
   draft: null,
   improved: '',
@@ -87,13 +98,61 @@ function generationInput() {
   return { taskId: state.taskId, original: state.original, details, preferences };
 }
 
+const taskKey = () => JSON.stringify([state.taskId, state.taskId === 'other' ? state.details.taskDescription || '' : '']);
+
+function taskReady() {
+  const details = state.taskId === 'other' ? { taskDescription: state.details.taskDescription || '' } : {};
+  return Boolean(state.taskId) && validateInput({ taskId: state.taskId, details, preferences: {} }, { stage: 'task' }).valid;
+}
+
+const STEP_LOCKED = [
+  '',
+  'Choose a task and select Continue to reach Prompt.',
+  'Analyse your current prompt to reach Analysis.',
+  'Select Improve My Prompt on the Analysis step to reach Personalise.',
+  'Create an improved prompt to reach Compare.'
+];
+
+// A step is reachable only when the action that leads to it succeeded for the current inputs.
+function stepAvailable(step) {
+  if (step <= 0) return true;
+  const prompt = taskReady() && state.continuedKey === taskKey();
+  if (step === 1) return prompt;
+  const analysed = prompt && analysisValid();
+  if (step === 2) return analysed;
+  const personalised = analysed && state.personalisedKey === state.analysisKey;
+  if (step === 3) return personalised;
+  return personalised && (state.generating || (Boolean(state.draft) && state.draft.analysisKey === state.analysisKey));
+}
+
 // ---------- Shared fragments ----------
 
 function stepper() {
+  const items = STEPS.map((step, index) => {
+    const current = state.page === 'workflow' && index === state.screen;
+    const open = stepAvailable(index);
+    const cls = current ? 'is-current' : open ? 'is-done' : 'is-locked';
+    const marker = `<span class="step-marker" aria-hidden="true">${!current && open ? '✓' : index + 1}</span><span class="step-name">${step}</span>`;
+    if (current) return `<li class="${cls}"><span class="step-item" aria-current="step">${marker}<span class="sr-only"> (current step)</span></span></li>`;
+    return `<li class="${cls}"><button type="button" class="step-item" data-step="${index}" data-fk="step-${index}"${open ? '' : ' aria-disabled="true"'}>${marker}<span class="sr-only">${open ? ' (completed)' : ' (not available yet)'}</span></button></li>`;
+  }).join('');
   return `<nav class="stepper" aria-label="Progress">
     <p class="step-count">Step ${state.screen + 1} of 5<span class="step-current">: ${STEPS[state.screen]}</span></p>
-    <ol class="step-list">${STEPS.map((step, index) => `<li class="${index < state.screen ? 'is-done' : index === state.screen ? 'is-current' : ''}"${index === state.screen ? ' aria-current="step"' : ''}><span class="step-dot" aria-hidden="true"></span><span class="step-name">${step}</span></li>`).join('')}</ol>
+    <ol class="step-list">${items}</ol>
+    ${state.stepHint ? `<p class="step-hint" id="step-hint">${esc(state.stepHint)}</p>` : ''}
   </nav>`;
+}
+
+function siteFooter() {
+  const onAbout = state.page === 'about';
+  return `<footer class="site-footer">
+    <p class="site-footer-brand"><strong>PromptWise</strong> <span>A student prompt coach</span></p>
+    <nav class="site-footer-links" aria-label="Site">
+      <a href="#about" data-nav="about"${onAbout ? ' aria-current="page"' : ''}>About &amp; team</a>
+      <a href="#how-it-works" data-nav="how-it-works">How it works</a>
+    </nav>
+    <p class="site-footer-note">UTS Information Systems Capstone · 2026</p>
+  </footer>`;
 }
 
 function header() {
@@ -133,18 +192,23 @@ function alertBox() {
 }
 
 function modeNote(mode, where) {
+  const meta = MODE_LABELS[mode];
   if (mode !== 'local-rules') {
-    return `<div class="mode-note"><p class="mode-title"><span class="mode-pill">${esc(MODE_LABELS[mode]?.pill || mode || 'Unknown mode')}</span> Result mode</p><p>Review this result before relying on it.</p></div>`;
+    return `<div class="mode-note"><p class="mode-summary"><span class="mode-pill">${esc(meta?.pill || mode || 'Unknown mode')}</span> Review this result before relying on it.</p></div>`;
   }
-  if (where === 'analysis') {
-    return `<div class="mode-note">
-      <p class="mode-title"><span class="mode-pill">${MODE_LABELS['local-rules'].pill}</span> How this check works</p>
-      <p>PromptWise looked for visible words and filled-in fields on this device. It does not use AI and cannot judge what your prompt means. A Present source only shows that text was supplied; it cannot confirm the material is complete or relevant.</p>
-    </div>`;
-  }
+  const analysis = where === 'analysis';
+  const points = analysis
+    ? ['Each status shows whether matching wording or filled-in details were found. The checks cannot judge what your prompt means.',
+      'A Present source only shows that text was supplied; it cannot confirm the material is complete or relevant.',
+      'The review runs in this browser. Nothing you type is sent to an AI service.']
+    : ['The draft is not an AI rewrite and has not been checked for accuracy.',
+      'It contains your words, the details you supplied and fixed wording for this task, such as asking the AI to flag claims to verify or to request missing material.',
+      'Nothing was sent to an AI service. Review and edit the draft before copying it.'];
   return `<div class="mode-note">
-    <p class="mode-title"><span class="mode-pill">${MODE_LABELS['local-rules'].pill}</span> Locally assembled draft</p>
-    <p>PromptWise combined your original words, the details and preferences you supplied, and fixed wording for this task. It is not an AI rewrite and has not been checked for accuracy. Nothing was sent to an AI service.</p>
+    <p class="mode-summary"><span class="mode-pill">${esc(meta.pill)}</span> ${analysis
+      ? '<strong>Local rules review.</strong> PromptWise checks visible wording and supplied details against seven task-aware criteria. It does not use AI.'
+      : '<strong>Locally assembled draft.</strong> PromptWise combined your prompt with the details you supplied. It does not use AI.'}</p>
+    <details class="mode-details"><summary data-fk="mode-details-${where}">How this ${analysis ? 'review' : 'draft'} works</summary><ul>${points.map(point => `<li>${point}</li>`).join('')}</ul></details>
   </div>`;
 }
 
@@ -199,7 +263,7 @@ function home() {
     <div class="others-panel" id="others-panel"${state.taskId === 'other' ? '' : ' hidden'}>
       <label class="field-label" for="task-description">Describe your academic task${reqMark}</label>
       <p class="field-help" id="task-description-help">Say what you need to do, for example: prepare interview questions for a student research project.</p>
-      <input class="text-field" type="text" id="task-description" data-detail="taskDescription" autocomplete="off" aria-required="true" value="${esc(description)}"${invalid('taskDescription')}${describedBy('task-description-help', 'task-description-count', errId('taskDescription'), 'task-description-warning')}>
+      <textarea class="text-field grow" rows="2" id="task-description" data-detail="taskDescription" autocomplete="off" aria-required="true" spellcheck="true"${invalid('taskDescription')}${describedBy('task-description-help', 'task-description-count', errId('taskDescription'), 'task-description-warning')}>${esc(description)}</textarea>
       <p class="char-count${length > CUSTOM_TASK_MAX_LENGTH ? ' is-over' : ''}" id="task-description-count">${length} / ${CUSTOM_TASK_MAX_LENGTH} characters</p>
       ${errorText('taskDescription')}
       <p class="field-warning" id="task-description-warning"${warnings.length ? '' : ' hidden'}>${esc(warnings.join(' '))}</p>
@@ -277,10 +341,11 @@ function fieldLabel(key) {
   return getDetailLabel(key, state.taskId);
 }
 
-function optionalCountText() {
-  const optional = (state.analysis?.fields || []).filter(field => field.priority !== 'recommended');
-  const filled = optional.filter(field => clean(state.details[field.key])).length;
-  return `${filled} of ${optional.length} filled`;
+const countText = fields => `${fields.filter(field => clean(state.details[field.key])).length} of ${fields.length} filled`;
+
+function preferenceSummary() {
+  const values = Object.keys(PREFERENCE_LABELS).map(key => key === 'format' && state.preferences.format === 'Other' ? clean(state.preferences.otherFormat) || 'Other' : clean(state.preferences[key])).filter(Boolean);
+  return values.length ? `${values.length} selected: ${values.map(value => truncate(value, 28)).join(', ')}` : 'None selected';
 }
 
 function excludedNote() {
@@ -324,17 +389,26 @@ function detailField(field) {
   const id = `detail-${field.key}`;
   const value = state.details[field.key] || '';
   const criterion = state.analysis?.criteria.find(row => row.key === field.criterion);
-  const help = field.priority === 'recommended' && field.guidance ? field.guidance : '';
-  const fileCapable = field.multiline && field.material;
-  const aria = `${invalid(field.key)}${describedBy(help ? `${id}-help` : '', errId(field.key))}`;
-  const control = field.multiline
-    ? `<textarea id="${id}" class="text-field multiline" data-detail="${field.key}" placeholder="${esc(field.placeholder || '')}" spellcheck="true"${aria}>${esc(value)}</textarea>`
-    : `<input id="${id}" class="text-field" type="text" data-detail="${field.key}" placeholder="${esc(field.placeholder || '')}" value="${esc(value)}"${aria}>`;
-  return `<div class="field${field.priority === 'recommended' ? ' is-recommended' : ''}" id="field-${field.key}">
-    <div class="field-top"><label class="field-label" for="${id}">${esc(field.label)}</label>${criterion ? `<span class="criterion-tag criterion-tag-${(STATUS[criterion.status] || STATUS['N/A']).cls}">Helps: ${esc(criterion.label)}</span>` : ''}</div>
-    ${help ? `<p class="field-help" id="${id}-help">${esc(help)}</p>` : ''}
+  const recommended = field.priority === 'recommended';
+  const helpId = field.guidance ? `${id}-help` : '';
+  const aria = `${invalid(field.key)}${describedBy(helpId, errId(field.key))}`;
+  let control;
+  if (field.material) {
+    // Pasted material can be long: keep the box bounded and scroll inside it.
+    control = `<textarea id="${id}" class="text-field material-input" data-detail="${field.key}" placeholder="${esc(field.placeholder || '')}" spellcheck="true"${aria}>${esc(value)}</textarea>`;
+  } else if (SHORT_FIELDS.has(field.key)) {
+    control = `<input id="${id}" class="text-field" type="text" data-detail="${field.key}" placeholder="${esc(field.placeholder || '')}" value="${esc(value)}"${aria}>`;
+  } else {
+    control = `<textarea id="${id}" class="text-field grow" rows="2" data-detail="${field.key}" placeholder="${esc(field.placeholder || '')}" spellcheck="true"${aria}>${esc(value)}</textarea>`;
+  }
+  const tag = recommended
+    ? `<span class="field-tag tag-recommended">Recommended${criterion ? ` · ${esc(criterion.label)}` : ''}</span>`
+    : '<span class="field-tag">Optional</span>';
+  return `<div class="field" id="field-${field.key}">
+    <div class="field-top"><label class="field-label" for="${id}">${esc(field.label)}</label>${tag}</div>
+    ${field.guidance ? `<p class="field-help" id="${helpId}">${esc(field.guidance)}</p>` : ''}
     ${control}
-    ${fileCapable ? fileControl(field) : ''}
+    ${field.material ? fileControl(field) : ''}
     ${errorText(field.key)}
   </div>`;
 }
@@ -352,65 +426,82 @@ function selectField(key, label, options, help = '') {
 }
 
 function choiceGroup(key, label, options, help) {
-  return `<div class="field">
-    <p class="field-label" id="${key}-label">${label}</p>
+  return `<fieldset class="field choice-fieldset"${describedBy(`${key}-help`, errId(key))}>
+    <legend class="field-label">${label}</legend>
     <p class="field-help" id="${key}-help">${help}</p>
-    <div class="choice-grid choice-grid-${key}" role="group" aria-labelledby="${key}-label" aria-describedby="${key}-help">
+    <div class="choice-grid choice-grid-${key}">
       ${options.map(option => {
         const on = state.preferences[key] === option;
         return `<button type="button" class="choice${on ? ' is-selected' : ''}" data-${key}="${esc(option)}" data-fk="${key}-${esc(option)}" aria-pressed="${on}">${esc(option)}</button>`;
       }).join('')}
     </div>
     ${errorText(key)}
-  </div>`;
+  </fieldset>`;
+}
+
+function fieldGroup(id, title, help, fields) {
+  if (!fields.length) return '';
+  const recommended = fields.filter(field => field.priority === 'recommended');
+  const optional = fields.filter(field => field.priority !== 'recommended');
+  const open = state.groupOpen[id] ?? (!recommended.length || optional.some(field => clean(state.details[field.key]) || state.files[field.key]));
+  return `<section class="surface form-group" aria-labelledby="${id}-heading">
+    <h2 id="${id}-heading">${title}</h2>
+    <p class="section-help">${help}</p>
+    ${recommended.length ? `<div class="form-stack">${recommended.map(detailField).join('')}</div>` : ''}
+    ${optional.length ? `<details class="optional-group" data-group="${id}"${open ? ' open' : ''}>
+      <summary data-fk="${id}-optional"><span class="optional-title">${recommended.length ? 'More optional details' : 'Optional details'}</span><span class="optional-count" data-count="${id}">${countText(optional)}</span></summary>
+      <div class="form-stack">${optional.map(detailField).join('')}</div>
+    </details>` : ''}
+  </section>`;
+}
+
+function preferencesGroup(otherFormat) {
+  const prefErrors = [...Object.keys(PREFERENCE_LABELS), 'otherFormat'].some(key => state.errors[key]);
+  const body = `<p class="section-help">Nothing is chosen for you. Tone and depth are preferences, not quality criteria.</p>
+    ${selectField('level', PREFERENCE_LABELS.level, LEVELS)}
+    <div class="field">
+      <label class="field-label" for="pref-audience">${PREFERENCE_LABELS.audience}</label>
+      <p class="field-help" id="pref-audience-help">Who the response is for, if not you. For example: my classmates, a tutor, a general audience.</p>
+      <textarea id="pref-audience" class="text-field grow" rows="2" data-pref="audience" spellcheck="true"${invalid('audience')}${describedBy('pref-audience-help', errId('audience'))}>${esc(state.preferences.audience || '')}</textarea>
+      ${errorText('audience')}
+    </div>
+    ${choiceGroup('depth', PREFERENCE_LABELS.depth, DEPTHS, 'Optional preference. Select again to clear.')}
+    ${selectField('tone', PREFERENCE_LABELS.tone, TONES, 'Optional preference.')}
+    ${choiceGroup('format', PREFERENCE_LABELS.format, FORMATS, 'Choosing a format addresses the Output format criterion. Select again to clear.')}
+    ${otherFormat ? `<div class="field other-format-field">
+      <label class="field-label" for="other-format">Describe the output format${reqMark}</label>
+      <textarea id="other-format" class="text-field grow" rows="2" data-pref="otherFormat" aria-required="true" placeholder="e.g. a two-column comparison"${invalid('otherFormat')}${describedBy(errId('otherFormat'))}>${esc(state.preferences.otherFormat || '')}</textarea>
+      ${errorText('otherFormat')}
+    </div>` : ''}`;
+  const heading = '<h2 id="preferences-heading">Response preferences <span class="optional-tag">Optional</span></h2>';
+  // Desktop keeps preferences visible beside the details; mobile starts collapsed but shows what is selected.
+  if (desktop.matches) return `<section class="surface form-group pref-column" aria-labelledby="preferences-heading">${heading}${body}</section>`;
+  const open = prefErrors || otherFormat || (state.groupOpen.prefs ?? false);
+  return `<section class="surface form-group pref-column" aria-labelledby="preferences-heading">${heading}
+    <details class="optional-group pref-details" data-group="prefs"${open ? ' open' : ''}>
+      <summary data-fk="prefs-toggle"><span class="optional-title">Show preferences</span><span class="optional-count" data-count="prefs">${esc(preferenceSummary())}</span></summary>
+      ${body}
+    </details>
+  </section>`;
 }
 
 function personalisationScreen() {
   const fields = state.analysis.fields;
-  const recommended = fields.filter(field => field.priority === 'recommended');
-  const optional = fields.filter(field => field.priority !== 'recommended');
-  const optionalOpen = state.optionalOpen ?? (!recommended.length || optional.some(field => clean(state.details[field.key]) || state.files[field.key]));
   const otherFormat = state.preferences.format === 'Other';
   const task = taskById(state.taskId);
   return `${header()}<main class="content" id="main">
     <h1 class="screen-title" tabindex="-1" data-fk="screen-title">Prompt Personalisation</h1>
-    <p class="intro">Add what you know for ${esc(task?.label || 'this task')}. These details are optional; leave unknown information blank and PromptWise will not invent it.</p>
-    ${otherFormat ? requiredNote : ''}
+    <p class="intro">Add what you know for ${esc(task?.label || 'this task')}. Everything here is optional unless marked <span class="req" aria-hidden="true">*</span><span class="sr-only">required</span>; leave unknown information blank and PromptWise will not invent it.</p>
     <details class="review-box">
       <summary data-fk="review-summary">Your prompt</summary>
       <div class="prompt-box compact">${esc(state.original)}</div>
     </details>
     <div class="personalise-layout">
       <div class="detail-column">
-        ${recommended.length ? `<section class="form-section" aria-labelledby="recommended-heading">
-          <h2 id="recommended-heading">Recommended for this prompt</h2>
-          <p class="section-help">These relate to criteria flagged in the analysis.</p>
-          <div class="form-stack">${recommended.map(detailField).join('')}</div>
-        </section>` : ''}
-        ${optional.length ? `<details class="optional-group" data-optional${optionalOpen ? ' open' : ''}>
-          <summary data-fk="optional-summary"><span class="optional-title">${recommended.length ? 'More optional details' : 'Optional details'}</span><span class="optional-count">${optionalCountText()}</span></summary>
-          <div class="form-stack">${optional.map(detailField).join('')}</div>
-        </details>` : ''}
+        ${fieldGroup('task-details', 'Task details', 'Recommended items relate to criteria flagged in the analysis.', fields.filter(field => !field.material))}
+        ${fieldGroup('materials', 'Materials and requirements', 'Paste text or add a .txt or .md file. If you do not have the material yet, leave it blank; the prompt can ask for it.', fields.filter(field => field.material))}
       </div>
-      <section class="form-section pref-column" aria-labelledby="preferences-heading">
-        <h2 id="preferences-heading">Response preferences <span class="optional-tag">Optional</span></h2>
-        <p class="section-help">Nothing is chosen for you. Tone and depth are preferences, not quality criteria.</p>
-        ${selectField('level', PREFERENCE_LABELS.level, LEVELS)}
-        <div class="field">
-          <label class="field-label" for="pref-audience">${PREFERENCE_LABELS.audience}</label>
-          <p class="field-help" id="pref-audience-help">Who the response is for, if not you. For example: my classmates, a tutor, a general audience.</p>
-          <input id="pref-audience" class="text-field" type="text" data-pref="audience" value="${esc(state.preferences.audience || '')}"${invalid('audience')}${describedBy('pref-audience-help', errId('audience'))}>
-          ${errorText('audience')}
-        </div>
-        ${choiceGroup('depth', PREFERENCE_LABELS.depth, DEPTHS, 'Optional preference. Select again to clear.')}
-        ${selectField('tone', PREFERENCE_LABELS.tone, TONES, 'Optional preference.')}
-        ${choiceGroup('format', PREFERENCE_LABELS.format, FORMATS, 'Choosing a format addresses the Output format criterion. Select again to clear.')}
-        ${otherFormat ? `<div class="field other-format-field">
-          <label class="field-label" for="other-format">Describe the output format${reqMark}</label>
-          <input id="other-format" class="text-field" type="text" data-pref="otherFormat" aria-required="true" placeholder="e.g. a two-column comparison" value="${esc(state.preferences.otherFormat || '')}"${invalid('otherFormat')}${describedBy(errId('otherFormat'))}>
-          ${errorText('otherFormat')}
-        </div>` : ''}
-      </section>
+      ${preferencesGroup(otherFormat)}
     </div>
     ${excludedNote()}
     ${alertBox()}
@@ -497,21 +588,102 @@ function compareScreen() {
   </main>`;
 }
 
+// ---------- About & team (auxiliary page, not a workflow step) ----------
+
+const ABOUT_STEPS = [
+  ['Choose a task', 'select the academic activity or describe your own.'],
+  ['Enter your prompt', 'start with your original words.'],
+  ['Review the analysis', 'see what is present, unclear or missing.'],
+  ['Add useful details', 'supply relevant context, material or preferences.'],
+  ['Compare and edit', 'review the revised prompt and copy your chosen version.']
+];
+const TEAM = ['Luu Quoc Thai Tran', 'Noah Holt', 'Angela Liu'];
+
+function aboutPage() {
+  return `<header class="page-head about-head">
+    <div class="head-row">
+      <button class="back-button" type="button" data-action="close-about" data-fk="about-return-top"><span aria-hidden="true">‹</span> Return to prompt</button>
+      <p class="brand brand-small">PromptWise</p>
+    </div>
+  </header>
+  <main class="content about" id="main">
+    <h1 class="screen-title" tabindex="-1" data-fk="screen-title">About PromptWise</h1>
+    <p class="about-lead">A student prompt coach, developed for the UTS Information Systems Capstone.</p>
+    <p class="about-text">PromptWise helps university students turn an initial idea into a clearer, better-scoped prompt before using a generative AI tool. It highlights missing or unclear details, explains why they matter, and helps students prepare a revised prompt they can review, edit and copy.</p>
+    <section class="surface about-section" aria-labelledby="about-why">
+      <h2 id="about-why">Why we built it</h2>
+      <p>Knowing what you need help with does not always mean knowing how to ask for it. A short prompt may leave out the task purpose, audience, relevant material or expected response. PromptWise makes those choices easier to see and supports students in developing their own prompting skills.</p>
+    </section>
+    <section class="surface about-section" id="how-it-works" aria-labelledby="about-how">
+      <h2 id="about-how" tabindex="-1" data-fk="about-how">How it works</h2>
+      <ol class="about-steps">${ABOUT_STEPS.map(([title, text]) => `<li><strong>${title}</strong> — ${text}</li>`).join('')}</ol>
+    </section>
+    <section class="surface about-section" aria-labelledby="about-approach">
+      <h2 id="about-approach">Our approach</h2>
+      <p>PromptWise uses seven task-aware criteria: clarity, context, specificity, constraints, output format, audience/level and input/source material. Tone and response depth are optional preferences. The purpose is to make prompt choices understandable while keeping the student in control.</p>
+      <p>The current prototype uses local rules and assembles a draft from the student's input. It does not use AI. Any future AI-assisted version will identify how its analysis and rewrite were produced.</p>
+    </section>
+    <section class="about-section" aria-labelledby="about-team">
+      <h2 id="about-team">Meet the team</h2>
+      <ul class="team-grid">${TEAM.map(name => `<li class="surface team-card"><p class="team-name">${name}</p><p>PromptWise project team</p></li>`).join('')}</ul>
+      <p>Developed as part of <strong>41195 Information Systems Capstone</strong> at the <strong>University of Technology Sydney</strong>, 2026.</p>
+    </section>
+    <section class="surface about-section" aria-labelledby="about-supervision">
+      <h2 id="about-supervision">Project supervision</h2>
+      <p class="team-name">Dr Amara Atif — Project supervisor</p>
+      <p>We thank Dr Amara Atif for her guidance and feedback on the project's scope and development.</p>
+    </section>
+    <section class="surface about-section" aria-labelledby="about-responsible">
+      <h2 id="about-responsible">Use responsibly</h2>
+      <p>PromptWise supports prompt preparation. Students remain responsible for their work, the information they share and their assessment requirements. Review suggestions and check facts and sources in any AI response. The final prompt is copied manually into the student's chosen tool.</p>
+    </section>
+    <div class="about-actions"><button class="primary-button" type="button" data-action="close-about" data-fk="about-return">Return to prompt</button></div>
+  </main>`;
+}
+
 // ---------- Rendering and navigation ----------
 
 const SCREENS = [home, promptInput, analysisScreen, personalisationScreen, compareScreen];
 
-function render() {
+const focusKeyOf = element => {
+  if (!element || element === document.body || !app.contains(element)) return null;
+  return element.dataset.fk ? `[data-fk="${CSS.escape(element.dataset.fk)}"]` : element.id ? `#${CSS.escape(element.id)}` : null;
+};
+
+// Grow sentence fields with their content up to a bounded height, then scroll inside them.
+function autosize(element) {
+  if (!element.isConnected || !element.getClientRects().length) return;
+  const y = window.scrollY;
+  const style = getComputedStyle(element);
+  const borders = parseFloat(style.borderTopWidth) + parseFloat(style.borderBottomWidth);
+  const line = parseFloat(style.lineHeight) || 23;
+  const max = line * GROW_MAX_LINES + parseFloat(style.paddingTop) + parseFloat(style.paddingBottom) + borders;
+  element.style.height = 'auto';
+  const needed = element.scrollHeight + borders;
+  element.style.height = `${Math.min(needed, max)}px`;
+  element.style.overflowY = needed > max ? 'auto' : 'hidden';
+  if (window.scrollY !== y) window.scrollTo(0, y);
+}
+const autosizeAll = (root = app) => root.querySelectorAll('textarea.grow').forEach(autosize);
+
+function render({ enter = '' } = {}) {
   const active = document.activeElement;
-  let key = null;
+  const key = focusKeyOf(active);
   let selection = null;
-  if (active && active !== document.body && app.contains(active)) {
-    key = active.dataset.fk ? `[data-fk="${CSS.escape(active.dataset.fk)}"]` : active.id ? `#${CSS.escape(active.id)}` : null;
+  if (key) {
     try { if (typeof active.selectionStart === 'number') selection = [active.selectionStart, active.selectionEnd]; } catch { selection = null; }
   }
-  let screen = state.screen;
-  if ((screen === 2 || screen === 3) && !state.analysis) screen = state.screen = 1;
-  app.innerHTML = `<div class="app-shell screen-${screen}">${SCREENS[screen]()}</div>`;
+  let body;
+  if (state.page === 'about') {
+    body = aboutPage();
+  } else {
+    if ((state.screen === 2 || state.screen === 3) && !state.analysis) state.screen = 1;
+    body = SCREENS[state.screen]();
+  }
+  app.innerHTML = `<div class="app-shell ${state.page === 'about' ? 'page-about' : `screen-${state.screen}`}">${body}${siteFooter()}</div>`;
+  autosizeAll();
+  // Only the incoming screen moves, so there is never a second live copy of a form.
+  if (enter) app.querySelector('main')?.classList.add(`enter-${enter}`);
   if (key) {
     const target = app.querySelector(key);
     if (target) {
@@ -525,9 +697,7 @@ function render() {
 
 function allowedScreen(target) {
   let screen = Math.min(Math.max(target, 0), 4);
-  if (screen === 4 && !state.draft && !state.generating) screen = 3;
-  if (screen >= 2 && !analysisValid()) screen = 1;
-  if (screen >= 1 && !state.taskId) screen = 0;
+  while (screen > 0 && !stepAvailable(screen)) screen -= 1;
   return screen;
 }
 
@@ -537,28 +707,97 @@ let sessionId = '';
 const newSession = () => { sessionId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`; };
 newSession();
 
+const workflowUrl = () => `${location.pathname}${location.search}`;
+
 function navigate(screen, { fromHistory = false, replace = false, keepErrors = false } = {}) {
-  const changed = screen !== state.screen;
+  const leavingAbout = state.page === 'about';
+  const changed = screen !== state.screen || leavingAbout;
+  const direction = leavingAbout || screen < state.screen ? 'backward' : 'forward';
+  const returnTo = leavingAbout ? state.returnTo : null;
+  state.page = 'workflow';
   state.screen = screen;
   state.pendingTask = '';
   state.confirmRestart = false;
   state.confirmReplace = false;
   state.alert = '';
+  state.stepHint = '';
   if (!keepErrors) state.errors = {};
-  if (changed) {
+  if (changed && !leavingAbout) {
     state.copy = { text: '', kind: '' };
-    if (screen !== 3) state.optionalOpen = null;
+    if (screen !== 3) state.groupOpen = {};
   }
-  render();
+  render({ enter: changed ? direction : '' });
   if (!fromHistory) {
-    if (replace) history.replaceState({ pw: screen, depth: historyDepth, sid: sessionId }, '');
-    else if (changed) history.pushState({ pw: screen, depth: ++historyDepth, sid: sessionId }, '');
+    if (replace) history.replaceState({ pw: screen, depth: historyDepth, sid: sessionId }, '', workflowUrl());
+    else if (changed) history.pushState({ pw: screen, depth: ++historyDepth, sid: sessionId }, '', workflowUrl());
   }
   if (changed) {
     document.title = `${TITLES[screen]} – PromptWise`;
-    window.scrollTo({ top: 0, behavior: 'instant' });
-    app.querySelector('.screen-title')?.focus({ preventScroll: true });
+    if (returnTo && returnTo.screen === screen) {
+      // Coming back from About: put the student where they were.
+      const target = returnTo.focus && app.querySelector(returnTo.focus);
+      (target || app.querySelector('.screen-title'))?.focus({ preventScroll: true });
+      window.scrollTo({ top: returnTo.scroll, behavior: 'instant' });
+    } else {
+      window.scrollTo({ top: 0, behavior: 'instant' });
+      app.querySelector('.screen-title')?.focus({ preventScroll: true });
+    }
   }
+}
+
+const isAboutHash = () => location.hash === '#about' || location.hash === '#how-it-works';
+
+function showAboutSection(section) {
+  const target = section ? app.querySelector('#about-how') : app.querySelector('.screen-title');
+  if (section) target?.scrollIntoView({ block: 'start' });
+  else window.scrollTo({ top: 0, behavior: 'instant' });
+  target?.focus({ preventScroll: true });
+}
+
+// About is an auxiliary page: it keeps the workflow state untouched and records where to return.
+function openAbout(section = '', { fromHistory = false, replaceEntry = false } = {}) {
+  const hash = section ? '#how-it-works' : '#about';
+  if (state.page === 'about') {
+    if (!fromHistory) history.replaceState({ ...(history.state || {}), page: 'about' }, '', hash);
+    showAboutSection(section);
+    return;
+  }
+  state.returnTo = { screen: state.screen, scroll: window.scrollY, focus: focusKeyOf(document.activeElement) };
+  state.page = 'about';
+  state.stepHint = '';
+  state.pendingTask = '';
+  render({ enter: 'forward' });
+  if (!fromHistory) {
+    if (replaceEntry) history.replaceState({ pw: state.screen, page: 'about', depth: historyDepth, sid: sessionId, back: false }, '', hash);
+    else history.pushState({ pw: state.screen, page: 'about', depth: ++historyDepth, sid: sessionId, back: true }, '', hash);
+  }
+  document.title = 'About & team – PromptWise';
+  showAboutSection(section);
+}
+
+function closeAbout() {
+  if (history.state?.page === 'about' && history.state.back && historyDepth > 0) history.back();
+  else navigate(allowedScreen(state.returnTo?.screen ?? state.screen), { replace: true });
+}
+
+// Typing does not re-render the screen, so refresh only the progress control when step availability may change.
+function refreshStepper() {
+  const nav = app.querySelector('.stepper');
+  if (!nav || nav.contains(document.activeElement)) return;
+  nav.outerHTML = stepper();
+}
+
+function goToStep(step) {
+  if (step === state.screen && state.page === 'workflow') return;
+  if (!stepAvailable(step)) {
+    state.stepHint = STEP_LOCKED[step];
+    const hint = app.querySelector('#step-hint');
+    if (hint) hint.textContent = state.stepHint;
+    else render();
+    announce(state.stepHint);
+    return;
+  }
+  navigate(step);
 }
 
 function goBack() {
@@ -588,6 +827,11 @@ function showErrors(fields) {
   const ordered = Object.keys(fields).sort((a, b) => rank(a) - rank(b));
   if (!ordered.length) return;
   state.errors = { ...fields };
+  for (const key of ordered) {
+    const field = (state.analysis?.fields || []).find(item => item.key === key);
+    if (field) state.groupOpen[field.material ? 'materials' : 'task-details'] = true;
+    if (key === 'otherFormat' || key in PREFERENCE_LABELS) state.groupOpen.prefs = true;
+  }
   const target = errorScreen(ordered[0]);
   if (target !== state.screen) navigate(target, { keepErrors: true });
   else render();
@@ -649,7 +893,7 @@ function applyTask(id) {
   state.analysis = null;
   state.analysisKey = '';
   state.expanded = new Set();
-  state.optionalOpen = null;
+  state.groupOpen = {};
   state.draft = null;
   state.improved = '';
   state.copiedValue = null;
@@ -677,6 +921,7 @@ function continueFromHome() {
   const input = { taskId: state.taskId, details: state.taskId === 'other' ? { taskDescription: state.details.taskDescription || '' } : {}, preferences: {} };
   const validation = validateInput(input, { stage: 'task' });
   if (!validation.valid) return showErrors(validation.fields);
+  state.continuedKey = taskKey();
   navigate(1);
 }
 
@@ -705,16 +950,16 @@ async function analyse() {
   if (seq !== analysisSeq || startEpoch !== epoch) return;
   state.analysing = false;
   const current = key === analysisKeyOf(analysisInput());
-  const stillHere = state.screen === startScreen;
+  const stillHere = state.page === 'workflow' && state.screen === startScreen;
   if (result && current) {
     state.analysis = result;
     state.analysisKey = key;
     state.expanded = new Set();
-    state.optionalOpen = null;
+    state.groupOpen = {};
   }
   if (!stillHere) {
-    // The user moved on while the request was pending: keep any current result, but stay where they are.
-    if (state.screen === 1) render();
+    // The user moved on (or opened About) while the request was pending: keep any current result, but stay where they are.
+    if (state.page === 'workflow' && state.screen === 1) render();
     return;
   }
   if (result && current) return navigate(2);
@@ -731,6 +976,7 @@ async function analyse() {
 
 function toPersonalisation() {
   if (!analysisValid()) return analyse();
+  state.personalisedKey = state.analysisKey;
   navigate(3);
 }
 
@@ -750,7 +996,7 @@ async function generate({ replace = false } = {}) {
       : `Choose whether to replace or add ${file.name}, or cancel it, before creating the prompt.`;
     state.files[key] = { ...file, notice: message };
     const field = state.analysis.fields.find(item => item.key === key);
-    if (field && field.priority !== 'recommended') state.optionalOpen = true;
+    if (field && field.priority !== 'recommended') state.groupOpen[field.material ? 'materials' : 'task-details'] = true;
     if (state.screen !== 3) navigate(3, { keepErrors: true });
     else render();
     const target = app.querySelector(file.status === 'reading' ? `[data-fk="file-stop-${key}"]` : `[data-fk="file-replace-${key}"]`);
@@ -786,7 +1032,7 @@ async function generate({ replace = false } = {}) {
   if (seq !== generateSeq || startEpoch !== epoch) return;
   state.generating = false;
   if (draft) {
-    state.draft = { ...draft, key: JSON.stringify(input), input };
+    state.draft = { ...draft, key: JSON.stringify(input), input, analysisKey: state.analysisKey };
     state.improved = draft.improvedPrompt;
     state.copiedValue = null;
     state.copy = { text: '', kind: '' };
@@ -795,6 +1041,7 @@ async function generate({ replace = false } = {}) {
   } else {
     state.generateError = 'The draft could not be assembled. Your prompt, details and preferences are unchanged.';
   }
+  if (state.page !== 'workflow') return;
   if (state.screen === 4) {
     render();
     app.querySelector('.screen-title')?.focus({ preventScroll: true });
@@ -896,7 +1143,7 @@ async function readFileInto(key, file) {
     state.files[key] = previous ? { ...previous, error: message } : { status: 'error', name: file.name, error: message, token };
   }
   // A late read updates state quietly when the user has moved to another screen; its status shows on return.
-  if (state.screen !== 3) return;
+  if (state.page !== 'workflow' || state.screen !== 3) return;
   if (!(state.analysis?.fields || []).some(field => field.key === key)) message = `Text from ${file.name} was kept, but this prompt does not use that field.`;
   const focusedHere = document.activeElement?.closest?.(`#field-${CSS.escape(key)} .file-control`);
   render();
@@ -963,6 +1210,19 @@ function fileAction(action, key) {
 // ---------- Events ----------
 
 app.addEventListener('click', event => {
+  const navLink = event.target.closest('[data-nav]');
+  if (navLink) {
+    // Modified clicks open the page in a new tab as normal links.
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    event.preventDefault();
+    openAbout(navLink.dataset.nav === 'how-it-works' ? 'how-it-works' : '');
+    return;
+  }
+  const step = event.target.closest('[data-step]');
+  if (step) {
+    goToStep(Number(step.dataset.step));
+    return;
+  }
   const toggle = event.target.closest('[data-toggle]');
   if (toggle) {
     const key = toggle.dataset.toggle;
@@ -1009,6 +1269,7 @@ app.addEventListener('click', event => {
   const action = event.target.closest('[data-action]')?.dataset.action;
   if (!action) return;
   if (action === 'back') goBack();
+  else if (action === 'close-about') closeAbout();
   else if (action === 'continue') continueFromHome();
   else if (action === 'confirm-task') {
     const next = state.pendingTask;
@@ -1039,11 +1300,13 @@ app.addEventListener('input', event => {
   if (target.matches('[data-original]')) {
     state.original = target.value;
     clearFieldError('original');
+    refreshStepper();
   } else if (target.matches('[data-detail]')) {
     const key = target.dataset.detail;
     state.details[key] = target.value;
     clearFieldError(key);
     if (key === 'taskDescription') {
+      refreshStepper();
       const length = target.value.trim().length;
       const count = document.getElementById('task-description-count');
       if (count) {
@@ -1077,12 +1340,16 @@ app.addEventListener('input', event => {
       const status = target.closest('.field')?.querySelector('.file-status');
       if (status) status.textContent = '';
     }
-    const count = target.closest('.optional-group')?.querySelector('.optional-count');
-    if (count) count.textContent = optionalCountText();
+    const group = target.closest('[data-group]');
+    const count = group?.querySelector(':scope > summary .optional-count');
+    if (count) count.textContent = countText(state.analysis.fields.filter(field => group.contains(app.querySelector(`#detail-${CSS.escape(field.key)}`))));
   } else if (target.matches('[data-pref]')) {
     state.preferences[target.dataset.pref] = target.value;
     clearFieldError(target.dataset.pref);
-  } else if (target.matches('[data-improved]')) {
+    const summary = app.querySelector('[data-count="prefs"]');
+    if (summary) summary.textContent = preferenceSummary();
+  }
+  if (target.matches('textarea.grow')) autosize(target); else if (target.matches('[data-improved]')) {
     state.improved = target.value;
     if (state.copy.text) setCopyMessage('', '');
   }
@@ -1099,15 +1366,26 @@ app.addEventListener('change', event => {
   } else if (target.matches('select[data-pref]')) {
     state.preferences[target.dataset.pref] = target.value;
     clearFieldError(target.dataset.pref);
+    const summary = app.querySelector('[data-count="prefs"]');
+    if (summary) summary.textContent = preferenceSummary();
   }
 });
 
 // <details> toggle events do not bubble, so listen during capture.
 app.addEventListener('toggle', event => {
-  if (event.target.matches?.('[data-optional]')) state.optionalOpen = event.target.open;
+  const group = event.target.dataset?.group;
+  if (group) state.groupOpen[group] = event.target.open;
+  // Text areas inside a closed disclosure have no size yet.
+  if (event.target.open) autosizeAll(event.target);
 }, true);
 
 window.addEventListener('popstate', event => {
+  if (!event.state) {
+    // A hash typed into the address bar: show the matching page and give the entry a proper state.
+    if (isAboutHash()) openAbout(location.hash === '#how-it-works' ? 'how-it-works' : '', { replaceEntry: true });
+    else navigate(state.page === 'about' ? allowedScreen(state.returnTo?.screen ?? 0) : state.screen, { replace: true });
+    return;
+  }
   const depth = Number.isInteger(event.state?.depth) ? event.state.depth : 0;
   const direction = depth < historyDepth ? -1 : 1;
   historyDepth = depth;
@@ -1117,12 +1395,16 @@ window.addEventListener('popstate', event => {
     else history.forward();
     return;
   }
+  if (event.state.page === 'about') {
+    openAbout(location.hash === '#how-it-works' ? 'how-it-works' : '', { fromHistory: true });
+    return;
+  }
   const requested = Number.isInteger(event.state?.pw) ? event.state.pw : 0;
   const screen = allowedScreen(requested);
-  if (screen !== requested) history.replaceState({ pw: screen, depth, sid: sessionId }, '');
+  if (screen !== requested) history.replaceState({ pw: screen, depth, sid: sessionId }, '', workflowUrl());
   // An entry whose prerequisites are gone resolves to the current screen; step over it instead of
   // leaving the user pressing Back (or Forward) with nothing happening.
-  if (screen === state.screen) {
+  if (screen === state.screen && state.page === 'workflow') {
     if (direction < 0) { history.back(); return; }
     if (direction > 0) { history.forward(); return; }
   }
@@ -1144,12 +1426,29 @@ app.addEventListener('focusin', event => {
 });
 
 desktop.addEventListener('change', () => {
-  if (state.screen === 2) render();
+  if (state.page === 'workflow' && (state.screen === 2 || state.screen === 3)) render();
+});
+let resizeFrame = 0;
+window.addEventListener('resize', () => {
+  cancelAnimationFrame(resizeFrame);
+  resizeFrame = requestAnimationFrame(() => autosizeAll());
 });
 
 // A reload starts a fresh in-memory session at Home but keeps the tab's existing history depth.
 historyDepth = Number.isInteger(history.state?.depth) ? history.state.depth : 0;
-history.replaceState({ pw: 0, depth: historyDepth, sid: sessionId }, '');
-document.title = `${TITLES[0]} – PromptWise`;
-render();
+if (isAboutHash()) {
+  // A direct visit to About has no workflow behind it; Return to prompt starts at Home.
+  const section = location.hash === '#how-it-works' ? 'how-it-works' : '';
+  state.page = 'about';
+  state.returnTo = { screen: 0, scroll: 0, focus: null };
+  history.replaceState({ pw: 0, page: 'about', depth: historyDepth, sid: sessionId, back: false }, '', location.hash);
+  document.title = 'About & team – PromptWise';
+  render();
+  // The browser's own fragment scroll runs after this script; place focus once loading settles.
+  if (section) window.addEventListener('load', () => setTimeout(() => showAboutSection(section), 0), { once: true });
+} else {
+  history.replaceState({ pw: 0, depth: historyDepth, sid: sessionId }, '', workflowUrl());
+  document.title = `${TITLES[0]} – PromptWise`;
+  render();
+}
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' }).catch(() => {});
