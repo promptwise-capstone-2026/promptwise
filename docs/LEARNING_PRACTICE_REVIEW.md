@@ -1,5 +1,10 @@
 # Local learning profile milestone review
 
+> Superseded later on 10 October 2026: the user chose the core app plus simple
+> History. Demo-profile and dashboard UI were removed without clearing saved data.
+> See [the current simplification review](SIMPLE_HISTORY_REVIEW.md). The coverage
+> below describes the preceding milestone.
+
 10 October 2026. Implemented a single local demo profile with optional history,
 session recovery and a supportive learning dashboard. The five-screen workflow
 remains the main flow; My practice and History are auxiliary pages.

@@ -2,6 +2,13 @@ import { analysePrompt, generatePrompt } from './rules.js';
 import { getPersonalisationFields } from './guidance.js';
 import { validateInput } from './validation.js';
 
+export const CRITERION_STATUS = {
+  Present: { cls: 'present', icon: '✓' },
+  Partial: { cls: 'partial', icon: '◐' },
+  Missing: { cls: 'missing', icon: '!' },
+  'N/A': { cls: 'na', icon: '–', spoken: 'not applicable' }
+};
+
 // Public mode descriptions travel with the adapter, so the UI cannot mislabel a future AI result.
 export const WORKFLOW_MODES = {
   openai: {

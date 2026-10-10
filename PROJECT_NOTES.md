@@ -177,3 +177,23 @@ allowlisted and cached under promptwise-v12.
 
 See docs/LEARNING_PRACTICE_REVIEW.md for verified coverage, privacy details and
 remaining work. Nothing was pushed or published during this milestone.
+
+
+### Simplify to core workflow and device-only History — 10 October 2026
+
+After testing, the user explicitly selected “Core app + simple history on this
+device; remove demo-profile and dashboard UI.” Removed the account-like naming,
+My practice navigation, analytics filters and dashboard calculations. Home has a
+compact opt-in History control; full export/deletion/privacy settings live in
+History. Unfinished-prompt recovery remains as protection against lost work.
+Existing v1 storage is read without clearing it; legacy envelope metadata remains
+only for compatibility and is not an identity/account. Old #practice links lead
+to History. No private documents, credentials or actual saved browser records
+were modified by development/testing.
+
+Saved evaluations now share status metadata and CSS with Analysis, with green
+Present, amber Partial, red Missing and grey N/A, plus labels/icons and expandable
+explanations. Cache v13. The user's proposed future dashboard is documented as
+usage over time, task distribution and recommendation frequencies with a shared
+week/month/year selector. Accounts, sync and these charts are deferred; no
+supervisor approval or grade outcome is claimed. See docs/SIMPLE_HISTORY_REVIEW.md.

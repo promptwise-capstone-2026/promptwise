@@ -1,11 +1,11 @@
 import { createPracticeStore, FRAMEWORK_VERSION, PRACTICE_KEY } from './practice.js';
-import { profileControls, renderPractice } from './practice-view.js';
+import { historyControls, renderHistory } from './practice-view.js';
 import { getPersonalisationFields } from './guidance.js';
 import { createExamplePicker, EXAMPLES } from './examples.js';
 import { getAIConfiguration, runAI } from './ai-client.js';
 import { TASKS, FORMATS, LEVELS, TONES, DEPTHS, PREFERENCE_LABELS, getDetailLabel } from './tasks.js';
 import { validateInput, CUSTOM_TASK_MAX_LENGTH, getValidationFieldMeta } from './validation.js';
-import { analyseWorkflow, improveWorkflow, WorkflowValidationError, WORKFLOW_MODES as MODE_LABELS, analysisFingerprint as analysisKeyOf } from './workflow.js';
+import { analyseWorkflow, improveWorkflow, WorkflowValidationError, CRITERION_STATUS as STATUS, WORKFLOW_MODES as MODE_LABELS, analysisFingerprint as analysisKeyOf } from './workflow.js';
 import { readMaterial, MATERIAL_MAX_CHARS } from './materials.js';
 
 const app = document.querySelector('#app');
@@ -14,12 +14,7 @@ const desktop = window.matchMedia('(min-width: 960px)');
 
 const STEPS = ['Task', 'Prompt', 'Analysis', 'Personalise', 'Compare'];
 const TITLES = ['Choose a task', 'Improve your prompt', 'Prompt Analysis', 'Prompt Personalisation', 'Compare the prompts'];
-const STATUS = {
-  Present: { cls: 'present', icon: '✓' },
-  Partial: { cls: 'partial', icon: '◐' },
-  Missing: { cls: 'missing', icon: '!' },
-  'N/A': { cls: 'na', icon: '–', spoken: 'not applicable' }
-};
+
 
 const GROW_MAX_LINES = 8;
 
@@ -67,7 +62,7 @@ let savingPaused = false;
 let saveTimer = 0;
 let savedCurrent = false;
 let lastSaveError = '';
-let practiceView = 'dashboard', selectedRecord = '', practiceTask = '', practiceCohort = '';
+let selectedRecord = '';
 const freshId = () => crypto.randomUUID();
 const pickExample = createExamplePicker();
 let engine = 'local-rules';
@@ -139,7 +134,7 @@ function syncUnloadWarning() {
   unloadWarningAttached = needed;
 }
 
-// ---------- Single local demo profile ----------
+// ---------- Optional history and recovery on this device ----------
 function savedAnalysis(result) {
   return {mode: result.mode, model: result.model || '', frameworkVersion: result.frameworkVersion || FRAMEWORK_VERSION,
     inputFingerprint: result.inputFingerprint, criteria: result.criteria, warnings: result.warnings || []};
@@ -170,7 +165,7 @@ function updateSaveStatus() {
   const status = app.querySelector('#practice-save-status');
   if(status)status.textContent=problem || (practiceStore.enabled?`Local saving on · ${count} of 50 attempts saved. Browser data can be cleared; export anything important.`:'Saving off. Work stays in this tab until you leave or refresh.');
   const note = app.querySelector('.session-note');
-  if(note)note.textContent=problem?'Local saving needs attention. Copy important work before leaving.':practiceStore.enabled?'Demo profile: saved locally in this browser. Pending file work is not recovered; export important work.':'Progress stays in this tab only. Refreshing or starting again clears it.';
+  if(note)note.textContent=problem?'Local saving needs attention. Copy important work before leaving.':practiceStore.enabled?'History saved in this browser. Pending file work is not recovered; export important work.':'Progress stays in this tab only. Refreshing or starting again clears it.';
   if(problem && problem!==lastSaveError)announce(problem);
   lastSaveError=problem;
 }
@@ -217,8 +212,7 @@ function resumePractice() {
   render();announce(state.recoveryNotice);
 }
 function practicePage() {
-  const result=renderPractice({data:practiceStore.read(),enabled:practiceStore.enabled,error:storageProblem(),view:practiceView,selectedId:selectedRecord,taskFilter:practiceTask,cohortFilter:practiceCohort});
-  practiceTask=result.taskId;practiceCohort=result.cohort;return result.html;
+  return renderHistory({data:practiceStore.read(),enabled:practiceStore.enabled,error:storageProblem(),selectedId:selectedRecord});
 }
 function clearPractice() {
   if(!window.confirm('Remove all saved work on this device and turn saving off? This cannot be undone. Your open prompt stays in this tab.'))return;
@@ -234,7 +228,7 @@ function exportPractice() {
 }
 function deleteSaved(id) {
   if(!window.confirm('Delete this saved attempt? This cannot be undone. If it is open now, it stays in this tab but will not be saved again until you start another attempt.'))return;
-  if(practiceStore.remove(id)){if(state.attemptId===id){if(state.attemptFingerprint===analysisKeyOf(analysisInput()))state.recordSuppressed=true;else{state.attemptId='';state.attemptFingerprint='';state.attemptCreatedAt='';}}if(recoveryCandidate?.attemptId===id){recoveryCandidate=null;recoveryPending=false;}selectedRecord='';openPractice('history',{replaceEntry:true});}
+  if(practiceStore.remove(id)){if(state.attemptId===id){if(state.attemptFingerprint===analysisKeyOf(analysisInput()))state.recordSuppressed=true;else{state.attemptId='';state.attemptFingerprint='';state.attemptCreatedAt='';}}if(recoveryCandidate?.attemptId===id){recoveryCandidate=null;recoveryPending=false;}selectedRecord='';openHistory({replaceEntry:true});}
   else {render();announce(practiceStore.error);}
 }
 function reuseSaved(id) {
@@ -325,13 +319,12 @@ function siteFooter() {
   return `<footer class="site-footer">
     <p class="site-footer-brand"><strong>PromptWise</strong> <span>A student prompt coach</span></p>
     <nav class="site-footer-links" aria-label="Site">
-      <a href="#practice" data-nav="practice"${state.page === 'practice' ? ' aria-current="page"' : ''}>My practice</a>
-      <a href="#history" data-nav="history">History</a>
+      <a href="#history" data-nav="history"${state.page === 'practice' ? ' aria-current="page"' : ''}>History</a>
       <a href="#about" data-nav="about"${onAbout ? ' aria-current="page"' : ''}>About &amp; team</a>
       <a href="#how-it-works" data-nav="how-it-works">How it works</a>
     </nav>
     <p class="site-footer-note">UTS Information Systems Capstone · 2026</p>
-    <p class="session-note">${practiceStore.enabled ? 'Demo profile: saved locally in this browser. Export important work.' : 'Progress stays in this tab only. Refreshing or starting again clears it.'}</p>
+    <p class="session-note">${practiceStore.enabled ? 'History saved in this browser. Export important work.' : 'Progress stays in this tab only. Refreshing or starting again clears it.'}</p>
   </footer>`;
 }
 
@@ -425,7 +418,7 @@ function home() {
   return `${header()}<main class="content" id="main" tabindex="-1">
     <h1 class="screen-title" tabindex="-1" data-fk="screen-title">What are you working on?</h1>
     ${engineControls()}
-    ${profileControls({enabled:practiceStore.enabled,error:storageProblem(),count:practiceStore.read().records.length})}
+    ${historyControls({enabled:practiceStore.enabled,error:storageProblem(),count:practiceStore.read().records.length,compact:true})}
     ${recoveryPanel()}
     <section class="surface example-panel" aria-labelledby="example-heading">
       <h2 id="example-heading">Explore with an example</h2>
@@ -813,7 +806,7 @@ function aboutPage() {
       <h2 id="about-approach">Our approach</h2>
       <p>PromptWise uses seven task-aware criteria: clarity, context, specificity, constraints, output format, audience/level and input/source material. Tone and response depth are optional preferences. The purpose is to make prompt choices understandable while keeping the student in control.</p>
       <p>Local rules mode checks wording and assembles a draft in the browser without AI. When configured for local testing, OpenAI mode analyses and rewrites prompts using the same seven criteria. You choose the mode before starting, and each result identifies its mode. AI findings can be wrong. Only an explicit Analyse or Create action sends the selected text to OpenAI, after you agree. Original files and images are not uploaded. The final prompt is still copied manually.</p>
-      <p>With optional local saving, one demo profile remembers text and results in this browser. History keeps your original review and edited prompt; My practice suggests useful habits from your own attempts. There is no sign-in or cloud backup. Saving can include accepted material text, so use it carefully on shared devices. You can export or remove saved data.</p>
+      <p>Optional History saves prompts, evaluations and edited drafts in this browser. It can also recover your unfinished prompt after refresh. There is no account or device sync. Saving can include accepted material text, so avoid sensitive work and shared devices. You can export or remove saved data.</p>
     </section>
     <section class="about-section" aria-labelledby="about-team">
       <h2 id="about-team">Team &amp; responsibilities</h2>
@@ -876,7 +869,7 @@ function render({ enter = '' } = {}) {
     body = SCREENS[state.screen]();
   }
   app.innerHTML = `<a class="skip-link" href="#main" data-skip-main data-fk="skip-main">Skip to main content</a><div class="app-shell ${state.page !== 'workflow' ? 'page-about' : `screen-${state.screen}`} ">${body}${siteFooter()}</div>`;
-  if(state.recoveryNotice){const note=document.createElement('p');note.className='notice notice-info';note.textContent=state.recoveryNotice;app.querySelector('main h1')?.insertAdjacentElement('afterend',note);}
+  if(state.recoveryNotice && state.page==='workflow'){const note=document.createElement('p');note.className='notice notice-info';note.textContent=state.recoveryNotice;app.querySelector('main h1')?.insertAdjacentElement('afterend',note);}
   autosizeAll();
   persistPractice();
   syncUnloadWarning();
@@ -974,17 +967,17 @@ function openAbout(section = '', { fromHistory = false, replaceEntry = false } =
 }
 
 const isPracticeHash = () => /^#(?:practice|history(?:\/[a-zA-Z0-9_-]{1,100})?)$/.test(location.hash);
-function openPractice(view='dashboard',{fromHistory=false,replaceEntry=false,id=''}={}) {
+function openHistory({fromHistory=false,replaceEntry=false,id=''}={}) {
   if(state.page==='workflow'&&(!fromHistory||!state.returnTo))state.returnTo={screen:state.screen,scroll:window.scrollY,focus:focusKeyOf(document.activeElement),depth:fromHistory?Math.max(0,historyDepth-1):historyDepth};
-  state.page='practice';practiceView=view;selectedRecord=id;state.stepHint='';state.pendingTask='';
-  const hash=view==='history'?`#history${id?'/'+id:''}`:'#practice';
+  state.page='practice';selectedRecord=id;state.stepHint='';state.pendingTask='';
+  const hash=`#history${id?'/'+id:''}`;
   render({enter:'forward'});
-  if(!fromHistory){const entry={pw:state.screen,page:'practice',view,id,depth:replaceEntry?historyDepth:++historyDepth,sid:sessionId,back:!replaceEntry};
+  if(!fromHistory){const entry={pw:state.screen,page:'practice',id,depth:replaceEntry?historyDepth:++historyDepth,sid:sessionId,back:!replaceEntry};
     if(replaceEntry)history.replaceState(entry,'',hash);else history.pushState(entry,'',hash);}
-  document.title=`${view==='history'?'Saved attempts':'My practice'} – PromptWise`;
+  document.title='History – PromptWise';
   window.scrollTo({top:0,behavior:'instant'});app.querySelector('.screen-title')?.focus({preventScroll:true});
 }
-function practiceFromHash(options={}) {openPractice(location.hash.startsWith('#history')?'history':'dashboard',{...options,id:location.hash.startsWith('#history/')?location.hash.slice(9):''});}
+function practiceFromHash(options={}) {const legacy=location.hash==='#practice';openHistory({...options,replaceEntry:legacy||options.replaceEntry,id:location.hash.startsWith('#history/')?location.hash.slice(9):''});if(legacy&&options.fromHistory)history.replaceState(history.state,'','#history');}
 function closeAbout() {
   if(Number.isInteger(state.returnTo?.depth)&&historyDepth>state.returnTo.depth){history.go(state.returnTo.depth-historyDepth);return;}
   navigate(allowedScreen(state.returnTo?.screen??state.screen),{replace:true});
@@ -1490,7 +1483,7 @@ app.addEventListener('click', event => {
     // Modified clicks open the page in a new tab as normal links.
     if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
     event.preventDefault();
-    if(navLink.dataset.nav==='practice'||navLink.dataset.nav==='history')openPractice(navLink.dataset.nav==='history'?'history':'dashboard',{id:navLink.dataset.record||''});
+    if(navLink.dataset.nav==='history')openHistory({id:navLink.dataset.record||''});
     else openAbout(navLink.dataset.nav === 'how-it-works' ? 'how-it-works' : '');
     return;
   }
@@ -1660,9 +1653,7 @@ app.addEventListener('change', event => {
   if(target.matches('[data-practice-enable]')) {
     if(target.checked){if(savingPaused){target.checked=false;announce(storageProblem());return;}state.recordSuppressed=false;practiceStore.enable();persistPractice();render();}
     else{clearPractice();target.checked=practiceStore.enabled;}
-  } else if(target.matches('[data-practice-task]')){practiceTask=target.value;practiceCohort='';render();app.querySelector('#practice-task')?.focus();}
-  else if(target.matches('[data-practice-cohort]')){practiceCohort=target.value;render();app.querySelector('#practice-cohort')?.focus();}
-  else if (target.matches('[data-engine]')) {
+  } else if (target.matches('[data-engine]')) {
     if (target.value === engine) return;
     if ((state.analysis || state.draft || state.analysing || state.generating) && !window.confirm('Change review mode? Existing analysis and draft will be cleared. Your prompt, details and files are kept.')) { target.value = engine; return; }
     stopWorkflowRequests();

@@ -44,11 +44,10 @@ result identifies its mode. AI findings can be wrong. Only an explicit Analyse
 or Create action sends the selected text to OpenAI, after you agree. Original
 files and images are not uploaded. The final prompt is still copied manually.
 
-With optional local saving, one demo profile remembers text and results in this
-browser. History keeps your original review and edited prompt; My practice
-suggests useful habits from your own attempts. There is no sign-in or cloud
-backup. Saving can include accepted material text, so use it carefully on shared
-devices. You can export or remove saved data.
+Optional History saves prompts, evaluations and edited drafts in this browser.
+It can also recover your unfinished prompt after refresh. There is no account or
+device sync. Saving can include accepted material text, so avoid sensitive work
+and shared devices. You can export or remove saved data.
 
 ### Team & responsibilities
 

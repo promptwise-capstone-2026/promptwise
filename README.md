@@ -53,29 +53,29 @@ consent are kept. Existing user inputs, files or results require confirmation
 before replacement; untouched samples can be cycled freely. Analyse still checks
 only the original prompt/custom task, not the preloaded personalisation details.
 
-## Optional local profile, history and learning dashboard
+## Optional History on this device
 
-On Home, enable **Remember my work on this device** to use the single **Demo
-learner** profile. Saving is off by default. This is one browser profile at one
-website address, with no sign-in, server account, cloud backup or device sync.
-The five-screen workflow works with saving off or unavailable.
+Enable **Save history on this device** on Home or in History. Saving is off by
+default. This keeps prompts and results in this browser at this website address;
+there is no account or device sync. The five-screen flow also works without saving.
 
-**History** keeps original prompts, their initial seven-criteria evaluations,
-generated drafts and the last student-edited version. **My practice** shows
-supportive tips, criterion patterns and an attempt timeline, separated by task,
-mode, model and framework version. Practice examples are excluded from dashboard
-statistics. These patterns are guidance, not grades or proof of learning.
+History keeps the original prompt, its initial seven-criteria evaluation,
+generated draft and latest edited version separately. Saved evaluation cards use
+the same status colours, icons and labels as Analysis. Open History from the Home
+link or any screen's footer to read, copy, reuse or delete a saved attempt.
 
-Refresh, then select **Resume saved work** on Home to recover saved text and
-results without another AI request. Accepted material text is included in session
-recovery; original file bytes and unaccepted extracts are not. API consent is
-never restored. Reusing an original from History starts a new attempt without
-its material fields or preferences.
+Refresh and select **Resume saved work** on Home to recover unfinished text and
+results without another AI request. Saving can include accepted source text and
+preferences for recovery; original files and pending extraction choices are not
+saved. API consent is never restored. Reusing a history original starts a new
+attempt without its material fields or preferences.
 
-Use **Export saved work (JSON)**, **Delete saved attempt**, or **Remove saved data
-& turn saving off** to manage saved work. JSON import is not implemented. Browser
-data can be cleared or lost; exports may contain private source text. The local
-limit is 50 attempts and 1,800,000 serialized characters, with visible errors
-rather than silent removal of older records. See [the milestone review](docs/LEARNING_PRACTICE_REVIEW.md)
-for verification and limitations. This user-authorised extension goes beyond the
-original report scope; academic scope confirmation remains pending.
+History settings includes JSON export and **Remove saved data & turn saving off**.
+Browser data can be lost, and exports may contain private text. JSON import is not
+implemented. Storage is limited to 50 attempts and 1,800,000 serialized characters;
+failed saves display an error rather than silently removing older entries.
+
+The demo-profile and learning-dashboard UI have been removed at the user's
+request. Cross-device accounts and a simpler chart-based dashboard are deferred.
+Existing saved history remains compatible. See [the simplification review](docs/SIMPLE_HISTORY_REVIEW.md).
+This history extension is user-authorised; academic scope confirmation remains pending.

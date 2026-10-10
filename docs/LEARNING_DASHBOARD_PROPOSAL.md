@@ -1,6 +1,11 @@
 # Learning history and dashboard extension
 
-Status, 10 October 2026: the user authorised development of a limited local demo profile, history, recovery and dashboard. The first local milestone is implemented; see [verification and limitations](LEARNING_PRACTICE_REVIEW.md). This is user authorisation to develop an extension, not confirmation that Amara or the team has agreed to amend the assessed scope. Online accounts remain future work.
+Status, 10 October 2026: after reviewing the local demo, the user chose the core
+app plus simple device-only History. The demo-profile and dashboard UI are
+removed; existing history and unfinished-prompt recovery are retained. Accounts,
+device sync and analytics are deferred. See [the current milestone](SIMPLE_HISTORY_REVIEW.md).
+This is a user-authorised development decision; Amara has not approved an
+academic scope change for history or analytics.
 
 ## Fit with the supplied report
 
@@ -28,22 +33,27 @@ approve this extension. Preserve time for evaluation and the final report.
    secure sessions, deletion/export and usage limits. Test that one user cannot
    access another's records. Never put provider keys in browser code.
 
-## Minimum useful dashboard
+## Deferred dashboard design requested by the user
 
-- Recent attempts: task/date, original prompt, saved initial evaluation, AI/local
-  mode, generated draft and final student-edited prompt. Keep both draft versions
-  so student changes remain visible. Do not generate task answers.
-- Patterns: which applicable criteria most often needed clarification, with a
-  concrete next tip and a short before/after example.
-- Practice over time: show descriptive status counts for comparable attempts,
-  with enough context to interpret them. N/A is excluded from applicable counts.
-- Optional reflection: “What did you add, and why?” This can provide a useful
-  learning activity without a competitive score or ranking.
-- First-use/limited-data views encourage trying another task; they do not assign
-  failure, red streaks, ability labels or a learning score.
+A future dashboard should use simple charts and one shared period selector:
+**This week**, **This month**, **This year**. It should show:
 
-Example wording: “In four of your six Study Support reviews, context could use
-more detail. Next time, try adding the subject and what you are preparing for.”
+- Usage over time: reviewed original-prompt attempts per day/week/month as
+  appropriate for the selected window. Define usage explicitly; page visits,
+  copying, edits and regenerations should not inflate it.
+- Task distribution: counts for Study Support, Summarisation, Coding Assistance,
+  Report Writing, Presentation Preparation and Others within the selected period.
+- Recommended improvements: how often an initial review flagged each of the
+  seven criteria as Partial or Missing, for example Context 3 and Output format 5.
+  Count a criterion once per original review, not by matching suggestion keywords.
+  Do not treat optional tone/depth as missing quality criteria.
+
+Keep the same period across all charts, define calendar boundaries and timezone,
+show actual counts and an accessible text/table equivalent, and avoid invented
+empty-state data. Label AI and local reviews correctly; mixed review groups must
+not imply comparable accuracy. Exclude demonstration examples from personal
+patterns. These are descriptive usage/recommendation counts, not a learning score
+or proof of improvement. The user has deferred implementation of these charts.
 
 ## Data and interpretation rules
 

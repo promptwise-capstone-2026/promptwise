@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createPracticeStore, PRACTICE_KEY, FRAMEWORK_VERSION, MAX_RECORDS, normaliseSnapshot, cohortKey, summarisePractice } from '../src/practice.js';
+import { createPracticeStore, PRACTICE_KEY, FRAMEWORK_VERSION, MAX_RECORDS, normaliseSnapshot } from '../src/practice.js';
 import { analyseWorkflow, improveWorkflow } from '../src/workflow.js';
-import { renderPractice } from '../src/practice-view.js';
+import { renderHistory } from '../src/practice-view.js';
 function memory() {const values=new Map();return {values,getItem:k=>values.get(k)??null,setItem:(k,v)=>values.set(k,v),removeItem:k=>values.delete(k)};}
 const now='2026-10-10T06:00:00.000Z';
 const input={taskId:'study',original:'Explain phishing.',details:{constraints:'Under 200 words',source:'Accepted lecture text.'},preferences:{format:'Other',otherFormat:'A numbered checklist'}};
@@ -38,7 +38,7 @@ test('quota/permission failures retain the last successful data and never report
   assert.equal(store.save({...f.snapshot,improved:'Unsaved edit'}),false);assert.match(store.error,/not saved/);assert.equal(store.exportJSON(),old);assert.equal(storage.getItem(PRACTICE_KEY),raw);
   storage.removeItem=()=>{throw new Error('Denied');};assert.equal(store.clear(),false);assert.equal(store.enabled,true);
 });
-test('damaged or unknown-version profiles are not overwritten without explicit removal',()=>{
+test('damaged or unknown-version histories are not overwritten without explicit removal',()=>{
   for(const raw of ['{broken',JSON.stringify({schema:99})]){
     const storage=memory();storage.setItem(PRACTICE_KEY,raw);const store=createPracticeStore(storage);
     assert.equal(store.enabled,false);assert.ok(store.error);assert.equal(store.enable(),false);assert.equal(storage.getItem(PRACTICE_KEY),raw);
@@ -51,25 +51,23 @@ test('bounded history refuses overflow atomically and deletion also removes that
   const previous=store.read();const more=fixture('overflow');assert.equal(store.save(more.snapshot,more.record),false);assert.deepEqual(store.read(),previous);
   assert.equal(store.remove('attempt-49'),true);assert.equal(store.read().current,null);assert.equal(store.read().records.length,MAX_RECORDS-1);assert.equal(store.save(more.snapshot,more.record),true);
 });
-test('learning counts separate task/mode/model/version, exclude examples and N/A, and never count generated rewrites as attempts',()=>{
-  const {record}=fixture();const a=record,b=structuredClone(record);b.id='second';b.analysis.criteria.find(c=>c.key==='context').status='Present';
-  const example={...record,id:'example',example:true},ai=structuredClone(record);ai.id='ai';ai.analysis.mode='openai';ai.analysis.model='fixture-model';
-  const otherVersion=structuredClone(record);otherVersion.id='version';otherVersion.analysis.frameworkVersion='future-v2';
-  const otherTask={...record,id:'report',taskId:'report'};
-  const stats=summarisePractice([a,b,example,ai,otherVersion,otherTask],{taskId:'study',cohort:cohortKey(record)});
-  assert.equal(stats.count,2);assert.equal(stats.timeline.length,2);
-  const context=stats.criteria.find(c=>c.key==='context');assert.equal(context.review,1);assert.equal(context.applicable,2);
-  const source=stats.criteria.find(c=>c.key==='source');assert.equal(source.applicable,0);assert.equal(source.review,0);assert.equal(source.counts['N/A'],2);
+test('existing v1 saved history is retained without an account migration or reset',()=>{
+  const storage=memory(),{snapshot,record}=fixture();
+  const raw=JSON.stringify({schema:1,profile:{id:'demo-local',name:'Demo learner'},records:[record],current:snapshot});
+  storage.setItem(PRACTICE_KEY,raw);const store=createPracticeStore(storage);
+  assert.equal(store.enabled,true);assert.equal(store.read().records[0].rewrite.edited,'Student edit.');assert.equal(store.read().current.input.details.source,input.details.source);
+  assert.equal(storage.getItem(PRACTICE_KEY),raw);assert.equal(store.read().records[0].analysis.criteria.length,7);
 });
-test('saved user text is escaped in history views and empty dashboard has no fabricated progress',()=>{
+test('saved history escapes user text and retains labelled status colours without account or dashboard UI',()=>{
   const {record}=fixture();record.original='<img src=x onerror=alert(1)>';
-  const html=renderPractice({data:{records:[record]},enabled:true,error:'',view:'history',selectedId:record.id}).html;
+  const html=renderHistory({data:{records:[record]},enabled:true,error:'',view:'history',selectedId:record.id});
   assert.match(html,/&lt;img/);assert.doesNotMatch(html,/<img src=x/);
-  const empty=renderPractice({data:{records:[]},enabled:false,error:''}).html;
-  assert.match(empty,/Build your own practice story/);assert.doesNotMatch(empty,/prompting ability|100%|You improved/i);
+  const empty=renderHistory({data:{records:[]},enabled:false,error:''});
+  assert.match(empty,/No saved prompts yet/);assert.doesNotMatch(empty,/Demo learner|local profile|Learning dashboard|My practice/);
+  for(const status of ['present','partial','missing','na'])assert.match(html,new RegExp('criterion-'+status));assert.doesNotMatch(empty,/prompting ability|100%|You improved/i);
 });
 
-test('a stale profile writer cannot overwrite work saved by another tab',()=>{
+test('a stale history writer cannot overwrite work saved by another tab',()=>{
   const storage=memory(),first=createPracticeStore(storage),staleBeforeEnable=createPracticeStore(storage);
   first.enable();assert.equal(staleBeforeEnable.enable(),false);
   const stale=createPracticeStore(storage),f=fixture();assert.equal(first.save(f.snapshot,f.record),true);

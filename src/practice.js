@@ -11,6 +11,8 @@ const statuses = new Set(['Present', 'Partial', 'Missing', 'N/A']);
 const taskIds = new Set(TASKS.map(t => t.id));
 const detailKeys = new Set(['taskDescription', 'constraints', ...TASKS.flatMap(t => t.fields.map(f => f.key))]);
 const clone = value => JSON.parse(JSON.stringify(value));
+// Keep the v1 envelope compatible so existing saved history is preserved.
+// Its legacy profile metadata is not an account or an authentication identity.
 const empty = () => ({ schema: 1, profile: { id: 'demo-local', name: 'Demo learner' }, records: [], current: null });
 const plain = v => Boolean(v) && typeof v === 'object' && !Array.isArray(v);
 function text(v, max = 1_000_000) { if (typeof v !== 'string' || v.length > max) throw new Error('Invalid saved text.'); return v; }
@@ -66,11 +68,11 @@ export function createPracticeStore(storage) {
   let data = empty(), enabled = false, error = '', damaged = false, storedRaw = null;
   try {
     const raw = storage.getItem(PRACTICE_KEY); storedRaw = raw;
-    if (raw != null) { if (raw.length > MAX_STORAGE_CHARS) throw new Error('Saved profile exceeds its limit.'); data = envelope(JSON.parse(raw)); enabled = true; }
+    if (raw != null) { if (raw.length > MAX_STORAGE_CHARS) throw new Error('Saved history exceeds its limit.'); data = envelope(JSON.parse(raw)); enabled = true; }
   } catch { error = 'Saved work could not be read. It has not been overwritten. Export the existing file if needed, or remove saved data to start again. The prompt workflow still works.'; damaged = true; }
   function write(next) {
     try {
-      if (storage.getItem(PRACTICE_KEY) !== storedRaw) throw new Error('Profile changed in another tab');
+      if (storage.getItem(PRACTICE_KEY) !== storedRaw) throw new Error('History changed in another tab');
       next = envelope(next);
       const raw = JSON.stringify(next);
       if (raw.length > MAX_STORAGE_CHARS) throw new Error('Storage limit reached');
@@ -92,29 +94,10 @@ export function createPracticeStore(storage) {
           else next.records[at] = clean;
         }
         return write(next);
-      } catch {error = 'Work was not saved. The profile may be full or this session too large. Export or remove saved entries and retry; your open prompt is unchanged.'; return false;}
+      } catch {error = 'Work was not saved. History may be full or this session too large. Export or remove saved entries and retry; your open prompt is unchanged.'; return false;}
     },
     remove(id) {const next = clone(data); next.records = next.records.filter(r => r.id !== id); if(next.current?.attemptId===id)next.current=null; return write(next);},
     clear() {try {storage.removeItem(PRACTICE_KEY);data=empty();storedRaw=null;enabled=false;damaged=false;error='';return true;}catch{error='Saved data could not be removed. Use your browser site-data settings. Saving has not been reported as disabled.';return false;}},
     exportJSON() {if(damaged){try{const raw=storage.getItem(PRACTICE_KEY);if(raw!=null)return raw;}catch{}}return JSON.stringify(data,null,2);}
   };
-}
-export const cohortKey = r => JSON.stringify([r.analysis.mode,r.analysis.model,r.analysis.frameworkVersion]);
-export const TIPS = {
-  clarity: 'Start with a clear action, such as explain, compare or review, and name the topic.',
-  context: 'Add the subject and what you are preparing for, such as a tutorial or assignment.',
-  specificity: 'Name the aspect, question or outcome you want the response to focus on.',
-  constraints: 'When relevant, say what limits or requirements the response must respect.',
-  format: 'Choose a useful structure, such as bullet points, a table or a short explanation.',
-  audience: 'Say who the response is for and the level of explanation they need.',
-  source: 'For source-dependent tasks, supply the relevant excerpt and identify the page or slide.'
-};
-export function summarisePractice(records, {taskId, cohort} = {}) {
-  const selected = records.filter(r => !r.example && r.taskId === taskId && cohortKey(r) === cohort).sort((a,b)=>a.createdAt.localeCompare(b.createdAt));
-  const criteria = CRITERIA.map(([key,label]) => {
-    const counts = {Present:0,Partial:0,Missing:0,'N/A':0};
-    for (const r of selected) counts[r.analysis.criteria.find(c=>c.key===key).status]++;
-    return {key,label,counts,applicable:selected.length-counts['N/A'],review:counts.Partial+counts.Missing,tip:TIPS[key]};
-  });
-  return {count:selected.length,criteria,timeline:selected.map(r=>({id:r.id,date:r.createdAt,counts:Object.fromEntries([...statuses].map(s=>[s,r.analysis.criteria.filter(c=>c.status===s).length]))}))};
 }
