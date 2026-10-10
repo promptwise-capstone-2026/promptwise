@@ -99,12 +99,11 @@ Recommended first candidate: one Render Node Web Service serving browser and
 backend from the same origin. Build: `npm ci --omit=optional && npm run prepare:vendor`.
 Start: `npm start`. HOST: `0.0.0.0`; PORT: provider supplied.
 
-Do not enable AI or add an API key to that hosted service yet. This milestone
-rejects remote AI access and refuses CLI startup with AI enabled on a public
-bind address. Before hosted AI, implement authenticated/invite access, durable
-request/spend controls, rate limiting suitable for proxies and restarts, and verify
-privacy, errors, HTTPS, service-worker updates and the deployed six-task workflow.
-A private GitHub repository does not make a deployed website private.
+The hosted pilot implementation now provides a shared team-password gate and
+persistent request/reservation controls. Keep AI disabled during the first deploy.
+Follow `docs/RENDER_DEMO_SETUP.md`; hosted operation still needs verification on
+Render before enabling AI or sharing the link. A private GitHub repository does
+not make a deployed website private. This pilot is not student authentication.
 
 Render gives a provider URL, so no domain is necessary initially. Its free web
 service currently sleeps after 15 minutes idle and can take about a minute to

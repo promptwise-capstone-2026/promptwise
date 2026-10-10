@@ -34,3 +34,8 @@ public/vendor/
 
 # Exported local learning history may contain private prompt/source text
 promptwise-saved-work-*.json
+
+# Private server usage counters (never source or browser assets)
+data/
+*.sqlite
+*.sqlite-*

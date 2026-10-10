@@ -14,7 +14,7 @@ export async function runAI(operation, input, { signal, fetchImpl = fetch } = {}
     response = await fetchImpl(`/api/${operation}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input), cache: 'no-store', signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(55000)]) : AbortSignal.timeout(55000) });
   } catch (error) {
     if (signal?.aborted) throw error;
-    throw new Error('AI needs a connection to the local server. Your input is unchanged; try again.');
+    throw new Error('AI needs a connection to the PromptWise server. Your input is unchanged; try again.');
   }
   let data;
   try { data = await response.json(); } catch { throw new Error('The server returned an unreadable response. Your input is unchanged; try again.'); }

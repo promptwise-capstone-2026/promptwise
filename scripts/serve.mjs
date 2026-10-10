@@ -1,3 +1,4 @@
+import { createHostedAccess } from '../server/hosted.mjs';
 import { createApiHandler } from '../server/api.mjs';
 import { createServer } from 'node:http';
 import { readFile, realpath, stat } from 'node:fs/promises';
@@ -31,10 +32,22 @@ const types = {
 };
 
 export function createAppServer({ root = projectRoot, apiOptions } = {}) {
-  const api = createApiHandler(apiOptions);
-  return createServer({ requestTimeout: 15000, headersTimeout: 10000 }, async (request, response) => {
+  const hosted = createHostedAccess(apiOptions?.env || process.env);
+  const api = createApiHandler({ ...apiOptions, hosted });
+  const server = createServer({ requestTimeout: 15000, headersTimeout: 10000 }, async (request, response) => {
+    response.setHeader('Cache-Control', 'no-store');
+    response.setHeader('X-Content-Type-Options', 'nosniff');
+    response.setHeader('Referrer-Policy', 'same-origin');
+    response.setHeader('X-Frame-Options', 'DENY');
     try {
       const apiPath = new URL(request.url, 'http://localhost').pathname;
+      // Public, content-free liveness check: no authentication or provider call.
+      if (apiPath === '/healthz') {
+        const ok = ['GET', 'HEAD'].includes(request.method);
+        response.writeHead(ok ? 200 : 405, { 'Content-Type': 'application/json' }).end(request.method === 'HEAD' ? undefined : JSON.stringify({ ok }));
+        return;
+      }
+      if (hosted && !hosted.authorise(request, response)) return;
       if (await api(request, response, apiPath)) return;
       if (!['GET', 'HEAD'].includes(request.method)) {
         response.writeHead(405, { Allow: 'GET, HEAD' }).end('Method not allowed');
@@ -68,12 +81,14 @@ export function createAppServer({ root = projectRoot, apiOptions } = {}) {
       response.writeHead(404).end('Not found');
     }
   });
+  server.once('close', () => api.close());
+  return server;
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const port = Number(process.env.PORT || 4173);
   const host = process.env.HOST || '127.0.0.1';
-  if (process.env.PROMPTWISE_AI_ENABLED === 'true' && !['127.0.0.1', 'localhost', '::1'].includes(host)) throw new Error('This milestone supports AI on localhost only. Configure hosted access and durable usage controls before enabling public AI.');
+  if (process.env.PROMPTWISE_AI_ENABLED === 'true' && process.env.PROMPTWISE_HOSTED !== 'true' && !['127.0.0.1', 'localhost', '::1'].includes(host)) throw new Error('Public AI requires PROMPTWISE_HOSTED=true with hosted access and durable usage controls.');
   createAppServer().listen(port, host, () => {
     console.log(`PromptWise is running at http://${host}:${port}`);
   });

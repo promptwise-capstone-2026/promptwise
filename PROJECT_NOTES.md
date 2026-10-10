@@ -197,3 +197,23 @@ explanations. Cache v13. The user's proposed future dashboard is documented as
 usage over time, task distribution and recommendation frequencies with a shared
 week/month/year selector. Accounts, sync and these charts are deferred; no
 supervisor approval or grade outcome is claimed. See docs/SIMPLE_HISTORY_REVIEW.md.
+
+
+## Hosted demo preparation — 10 October 2026
+
+The current implementation now supports an explicitly enabled, password-protected
+Render pilot. All hosted app/API requests require a shared demo password, with a
+public content-free `/healthz` endpoint. AI POSTs require the configured origin.
+SQLite counters reserve a global request and conservative cost allowance before
+outbound calls, including failures; the counters and 10-second global cooldown
+survive restarts when a persistent disk is mounted. No student text or secrets are
+stored on that disk. The lifetime reservation estimate is not actual provider
+billing or a guaranteed dollar cap. Local mode remains the default. See
+`docs/RENDER_DEMO_SETUP.md` for exact settings, limitations and verification.
+
+63 Node tests and 55 isolated browser checks passed, with fake API responses only.
+The latest GitHub main was verified as `007b98b` and is behind the local milestones.
+No push/deployment/payment/live call was performed. Hosting and shared pilot access
+are user-requested implementation choices; do not infer Amara approved them or
+that the original report/contract has been updated. No student account, dashboard
+or cross-device history has been added. Cache: `promptwise-v22`.

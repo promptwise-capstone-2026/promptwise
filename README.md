@@ -1,6 +1,6 @@
 # PromptWise
 
-PromptWise helps students inspect and improve a prompt before copying it into a generative AI tool. Local rules mode is the default and keeps prompt processing in the browser. Optional OpenAI analysis and rewriting are implemented for local testing after configuring a server-side key. AI mode sends selected text only after explicit agreement and action; each result identifies its mode.
+PromptWise helps students inspect and improve a prompt before copying it into a generative AI tool. Local rules mode is the default and keeps prompt processing in the browser. Optional OpenAI analysis and rewriting are available for local testing and a password-protected hosted pilot after configuring a server-side key. AI mode sends selected text only after explicit agreement and action; each result identifies its mode.
 
 ## Run on this Mac
 
@@ -79,3 +79,11 @@ The demo-profile and learning-dashboard UI have been removed at the user's
 request. Cross-device accounts and a simpler chart-based dashboard are deferred.
 Existing saved history remains compatible. See [the simplification review](docs/SIMPLE_HISTORY_REVIEW.md).
 This history extension is user-authorised; academic scope confirmation remains pending.
+
+## Hosted demo
+
+See [Render demo setup](docs/RENDER_DEMO_SETUP.md). The hosted pilot uses one
+shared browser password prompt, not student accounts. AI usage counters persist
+on a small server disk; student History remains optional and browser-local.
+Keep AI disabled until the first deployment is verified. Publishing code,
+creating paid services and live API testing remain explicit release actions.

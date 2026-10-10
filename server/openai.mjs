@@ -94,20 +94,26 @@ export function validateResult(data, operation, input) {
   return { mode: 'openai', inputFingerprint: analysisFingerprint(input), criteria, fields: getPersonalisationFields(input, criteria), warnings: data.warnings };
 }
 
-export async function requestOpenAI(operation, raw, { apiKey, model = DEFAULT_MODEL, signal, fetchImpl = fetch, timeoutMs = 45000 } = {}) {
+export function buildOpenAIRequest(operation, raw, model = DEFAULT_MODEL) {
   const input = normaliseInput(raw, operation);
-  if (!apiKey) throw new ApiError(503, 'AI mode is not configured. Your input has not been sent.');
   const schema = operation === 'analysis' ? ANALYSIS_SCHEMA : REWRITE_SCHEMA;
   const instructions = `${BOUNDARY}\n${FRAMEWORK}\n${operation === 'analysis'
     ? 'Return one finding per criterion. Evidence must be a short exact quote from supplied input, or an empty string if absent. Explain N/A. Suggest a useful next step for Missing or Partial.'
     : 'Rewrite the prompt into coherent instructions using relevant supplied details and optional preferences. Organise source excerpts under clear labels, copy supplied excerpts verbatim and distinguish them from instructions. Return a prompt that the student can edit and copy. Flag essential missing material, contradictions and extraction limitations in warnings. Warnings are not a checklist of absent preferences: do not warn just because tone, depth, examples or an unnecessary format is unspecified. Do not assume an educational level or audience; omit it when unnecessary or use an explicit placeholder when essential. Do not simply concatenate field labels or answer the task.'}`;
+  return { model, store: false, max_output_tokens: operation === 'analysis' ? 3000 : 6000,
+    instructions, input: JSON.stringify({ task: TASKS.find(task => task.id === input.taskId).label, ...input }),
+    text: { format: { type: 'json_schema', name: `promptwise_${operation}`, strict: true, schema } } };
+}
+
+export async function requestOpenAI(operation, raw, { apiKey, model = DEFAULT_MODEL, signal, fetchImpl = fetch, timeoutMs = 45000 } = {}) {
+  const input = normaliseInput(raw, operation);
+  if (!apiKey) throw new ApiError(503, 'AI mode is not configured. Your input has not been sent.');
+  const body = buildOpenAIRequest(operation, input, model);
   try {
     const response = await fetchImpl('https://api.openai.com/v1/responses', {
       method: 'POST', signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(timeoutMs)]) : AbortSignal.timeout(timeoutMs),
       headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model, store: false, max_output_tokens: operation === 'analysis' ? 3000 : 6000,
-        instructions, input: JSON.stringify({ task: TASKS.find(task => task.id === input.taskId).label, ...input }),
-        text: { format: { type: 'json_schema', name: `promptwise_${operation}`, strict: true, schema } } })
+      body: JSON.stringify(body)
     });
     if (!response.ok) throw new ApiError(response.status === 429 ? 429 : 502, response.status === 429 ? 'The AI service is at its usage or rate limit. Try later or check API billing.' : 'The AI service could not complete this request. Check the server configuration and try again.');
     const result = await response.json();
