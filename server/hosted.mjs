@@ -21,7 +21,7 @@ export function createHostedAccess(env) {
   return {
     origin: origin.origin,
     host: origin.host,
-    authorise(request, response) {
+    authorise(request, response, { credentialsRequired = true } = {}) {
       if (request.headers.host !== origin.host) {
         response.writeHead(421).end('Use the configured demo address.');
         return false;
@@ -30,6 +30,7 @@ export function createHostedAccess(env) {
         response.writeHead(403).end('Open the demo over HTTPS.');
         return false;
       }
+      if (!credentialsRequired) return true;
       const header = request.headers.authorization || '';
       let credentials = '';
       if (header.length <= 1024 && /^Basic [A-Za-z0-9+/]+={0,2}$/i.test(header)) credentials = Buffer.from(header.slice(6), 'base64').toString('utf8');

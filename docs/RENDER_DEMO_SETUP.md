@@ -57,8 +57,10 @@ set PROMPTWISE_PUBLIC_ORIGIN to its exact HTTPS origin; only that host is accept
 
 ## Controls implemented
 
-- All hosted app assets/API routes require HTTP Basic authentication. Only the
-  content-free health endpoint is public. Credentials are checked with fixed-size
+- Hosted app content/assets and API routes require HTTP Basic authentication.
+  The content-free health endpoint, `/demo` recovery page and `/sw.js` cleanup
+  worker are public. The recovery resources still require the configured Host
+  and HTTPS. They contain no student work or credentials. Credentials use fixed-size
   hashes and constant-time comparison. Requires HTTPS at the reverse proxy,
   exact configured Host, exact Origin for AI POSTs and no cross-site fetches.
 - Render terminates TLS; only use this proxy setup with a trusted edge. The
@@ -89,9 +91,11 @@ set PROMPTWISE_PUBLIC_ORIGIN to its exact HTTPS origin; only that host is accept
   accounts or cross-device history. Do not reuse an account password. Share the
   demo password privately with intended testers, never the API key.
 - Browsers may remember HTTP Basic credentials until their session ends. There
-  is no sign-out UI. Previously cached app assets may work offline; the password
-  gate protects server access and paid API requests, not data already on a device.
-  Optional saved History must be exported/deleted using its existing controls.
+  is no sign-out UI. The hosted worker deliberately has no fetch handler or
+  offline cache: reopening/reloading the hosted demo needs a connection. The
+  local development worker retains offline support. Optional saved History must
+  be exported/deleted using its existing controls. The password gate protects
+  server access, not data already on a device. See [the browser-access fix](BROWSER_ACCESS_FIX.md).
 - One shared allowance may mean testers wait for each other. Restarting the
   service cannot bypass the counter. The disk must stay attached; deleting or
   replacing it loses counters and invalidates that continuity. There is no

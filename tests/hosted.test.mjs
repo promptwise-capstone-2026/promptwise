@@ -8,6 +8,7 @@ import { join } from 'node:path';
 import { createUsageAllowance, createHostedAccess, reservationMicroUSD } from '../server/hosted.mjs';
 import { buildOpenAIRequest, DEFAULT_MODEL } from '../server/openai.mjs';
 import { createAppServer } from '../scripts/serve.mjs';
+import { runInNewContext } from 'node:vm';
 import { CRITERIA } from '../src/rules.js';
 // Native HTTP preserves the explicit Host header; Node fetch replaces it with
 // the URL host. Exercise the same host Render forwards, without external DNS/TLS.
@@ -94,13 +95,15 @@ test('symlinked usage files are rejected and runtime storage failures stop reque
   assert.throws(() => allowance.reserve(100), error => error.status === 503);
 });
 
-test('the entire hosted site is gated except content-free health; host, TLS and password are checked', async t => {
+test('hosted app content requires credentials and rejects invalid Host and TLS', async t => {
   const f = await fixture(t, { PROMPTWISE_AI_ENABLED: 'false' });
-  for (const path of ['/', '/src/app.js', '/api/config', '/sw.js']) {
+  for (const path of ['/', '/index.html', '/src/app.js', '/api/config']) {
     const denied = await f.get(path, { Authorization: '' });
     assert.equal(denied.status, 401, path);
     assert.match(denied.headers.get('www-authenticate'), /Basic/);
     assert.equal(denied.headers.get('cache-control'), 'no-store');
+    assert.equal(denied.headers.get('content-type'), 'text/plain; charset=utf-8');
+    assert.equal(denied.headers.get('content-disposition'), null);
     assert.equal((await f.get(path, { Authorization: 'Basic ' + Buffer.from('demo:wrong').toString('base64') })).status, 401);
   }
   assert.equal((await f.get('/', { Host: 'evil.example' })).status, 421);
@@ -140,4 +143,45 @@ test('failed provider attempts stay reserved after restart and cannot be retried
   await f.restart();
   assert.equal((await f.post()).status, 429);
   assert.equal(calls, 1);
+});
+
+test('content-free hosted recovery resources work without credentials while app content stays gated', async t => {
+  const f = await fixture(t, { PROMPTWISE_AI_ENABLED: 'false' });
+  const entry = await f.get('/demo', { Authorization: '' });
+  assert.equal(entry.status, 200);
+  assert.equal(entry.headers.get('content-type'), 'text/html; charset=utf-8');
+  const html = await entry.text();
+  assert.match(html, /Updating app files/);
+  assert.doesNotMatch(html, /src\/app.js|fixture-demo-password|fixture-secret/);
+  assert.equal((await f.get('/', { Authorization: '' })).status, 401);
+  const worker = await f.get('/sw.js', { Authorization: '' });
+  assert.equal(worker.status, 200);
+  assert.match(worker.headers.get('content-type'), /javascript/);
+  assert.equal(await worker.text(), await readFile(new URL('../sw-hosted.js', import.meta.url), 'utf8'));
+  assert.equal((await f.get('/sw-hosted.js')).status, 403);
+  assert.equal((await f.get('/public/demo-access.html')).status, 403);
+  for (const path of ['/demo', '/sw.js']) {
+    assert.equal((await f.get(path, { Authorization: '', Host: 'evil.example' })).status, 421);
+    assert.equal((await f.get(path, { Authorization: '', 'X-Forwarded-Proto': 'http' })).status, 403);
+  }
+});
+
+test('hosted worker leaves authentication on the network and replaces only app asset caches', async t => {
+  const f = await fixture(t, { PROMPTWISE_AI_ENABLED: 'false' });
+  const events = new Map(), calls = [], stored = new Set(['promptwise-v22', 'promptwise-v3', 'another-app-cache']);
+  runInNewContext(await (await f.get('/sw.js')).text(), {
+    self: {
+      addEventListener: (name, callback) => events.set(name, callback),
+      skipWaiting: async () => calls.push('skip'),
+      clients: { claim: async () => calls.push('claim') }
+    },
+    caches: { keys: async () => [...stored], delete: async name => stored.delete(name) }
+  });
+  assert.equal(events.has('fetch'), false, 'Browser must handle Basic auth without a worker fetch proxy');
+  let pending;
+  const event = { waitUntil: promise => { pending = promise; } };
+  events.get('install')(event); await pending;
+  events.get('activate')(event); await pending;
+  assert.deepEqual(calls, ['skip', 'claim']);
+  assert.deepEqual([...stored], ['another-app-cache']);
 });

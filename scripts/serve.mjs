@@ -36,6 +36,8 @@ export function createAppServer({ root = projectRoot, apiOptions } = {}) {
   const api = createApiHandler({ ...apiOptions, hosted });
   const server = createServer({ requestTimeout: 15000, headersTimeout: 10000 }, async (request, response) => {
     response.setHeader('Cache-Control', 'no-store');
+    // Error bodies must be displayable text even when nosniff is enabled.
+    response.setHeader('Content-Type', 'text/plain; charset=utf-8');
     response.setHeader('X-Content-Type-Options', 'nosniff');
     response.setHeader('Referrer-Policy', 'same-origin');
     response.setHeader('X-Frame-Options', 'DENY');
@@ -47,20 +49,27 @@ export function createAppServer({ root = projectRoot, apiOptions } = {}) {
         response.writeHead(ok ? 200 : 405, { 'Content-Type': 'application/json' }).end(request.method === 'HEAD' ? undefined : JSON.stringify({ ok }));
         return;
       }
-      if (hosted && !hosted.authorise(request, response)) return;
+      // These two content-free recovery resources must remain reachable when
+      // an earlier worker cannot complete the browser's native password flow.
+      const hostedRecovery = hosted && ['/demo', '/sw.js'].includes(apiPath);
+      if (hosted && !hosted.authorise(request, response, { credentialsRequired: !hostedRecovery })) return;
       if (await api(request, response, apiPath)) return;
       if (!['GET', 'HEAD'].includes(request.method)) {
         response.writeHead(405, { Allow: 'GET, HEAD' }).end('Method not allowed');
         return;
       }
       const pathname = decodeURIComponent(new URL(request.url, 'http://localhost').pathname);
-      const assetPath = pathname === '/' ? '/index.html' : pathname;
-      if (!publicPaths.has(assetPath)) {
+      const assetPath = pathname === '/' ? '/index.html'
+        : hostedRecovery && pathname === '/demo' ? '/public/demo-access.html' : pathname;
+      if (!publicPaths.has(assetPath) && !(hostedRecovery && pathname === '/demo')) {
         response.writeHead(403).end('Forbidden');
         return;
       }
       const canonicalRoot = await realpath(root);
-      const requested = resolve(canonicalRoot, `.${assetPath}`);
+      // Keep Basic authentication on the browser's native network path. Hosted
+      // /sw.js replaces old offline workers without touching student History.
+      const filePath = hosted && assetPath === '/sw.js' ? '/sw-hosted.js' : assetPath;
+      const requested = resolve(canonicalRoot, `.${filePath}`);
       // Reject symlinks into private material or outside the project, even when
       // the requested URL is one of the allowed browser assets.
       if (await realpath(requested) !== requested) {

@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Open PromptWise demo</title>
+  <style>
+    body { margin: 0; padding: 32px 20px; background: #edeef0; color: #101318; font: 18px/1.5 system-ui, sans-serif; }
+    main { max-width: 640px; margin: 8vh auto; padding: 32px; border-radius: 24px; background: white; }
+    h1 { line-height: 1.2; } a { color: inherit; } a:focus-visible { outline: 3px solid #2457c5; outline-offset: 5px; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Open PromptWise demo</h1>
+  <p id="status" role="status">Updating app files before opening the demo…</p>
+  <p>Your saved History stays in this browser. The demo will ask for the team username and password.</p>
+  <p><a href="/">Continue to PromptWise</a></p>
+</main>
+<script>
+(async () => {
+  try {
+    if ('serviceWorker' in navigator) {
+      const registration = await navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' });
+      await registration.update();
+      const worker = registration.installing || registration.waiting || registration.active;
+      if (worker && worker.state !== 'activated') await new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => { worker.removeEventListener('statechange', changed); reject(new Error('Update timed out')); }, 15000);
+        function changed() {
+          if (worker.state === 'activated' || worker.state === 'redundant') {
+            clearTimeout(timeout); worker.removeEventListener('statechange', changed);
+            worker.state === 'activated' ? resolve() : reject(new Error('Update failed'));
+          }
+        }
+        worker.addEventListener('statechange', changed); changed();
+      });
+    }
+    location.replace('/');
+  } catch {
+    document.getElementById('status').textContent = 'The app update could not finish. Check your connection, reload this page, then choose Continue to PromptWise.';
+  }
+})();
+</script>
+</body>
+</html>

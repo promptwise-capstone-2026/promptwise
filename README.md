@@ -122,9 +122,16 @@ rewriting. Read-only counter checks before and after a Render service restart
 both returned `calls: 2` and `reserved_micro_usd: 21380`, confirming persistence
 for that tested restart. These counters are reservations, not provider billing.
 
+The 11 October browser-authentication fix passes **65/65 regression tests** and
+**55/55 mocked workflow checks**. It also reproduces and repairs the old-worker
+login failure across browser restarts while retaining saved History and recovery.
+See [browser access fix and remaining device checks](docs/BROWSER_ACCESS_FIX.md).
+
 Known limits:
 
 - Shared demo password; no individual accounts, sign-out UI or cross-device sync.
+- Reopening or reloading the hosted demo requires a connection. Local development
+  retains offline support; saved History is still local to each browser.
 - No OCR or interpretation of scanned pages, images, diagrams, audio or video.
 - History can be lost when browser data is cleared; export important work.
 - AI suggestions can be wrong; independent learning-effectiveness and model-quality
@@ -218,6 +225,10 @@ This history extension is user-authorised; academic scope confirmation remains p
 See [Render demo setup](docs/RENDER_DEMO_SETUP.md). The hosted pilot uses one
 shared browser password prompt, not student accounts. AI usage counters persist
 on a small server disk; student History remains optional and browser-local.
+After deploying the browser-access fix, an affected browser can open `/demo` to
+update old app files without deleting History, then enter the team credentials.
+That recovery page and its content-free worker are public; app content and APIs
+remain password-protected.
 The project lead has checked the initial hosted workflow and counter persistence
 as recorded above. For any new deployment, keep AI disabled until access and
 persistent storage are checked. Publishing code, changing repository visibility,
