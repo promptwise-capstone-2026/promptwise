@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { once } from 'node:events';
-import { requestOpenAI, normaliseInput, validateResult, MAX_INPUT_CHARS } from '../server/openai.mjs';
+import { requestOpenAI, normaliseInput, validateResult, buildOpenAIRequest, MAX_INPUT_CHARS } from '../server/openai.mjs';
 import { createAppServer } from '../scripts/serve.mjs';
 import { CRITERIA } from '../src/rules.js';
 import { runAI } from '../src/ai-client.js';
@@ -105,4 +105,51 @@ test('simultaneous local AI calls are rejected while the first provider request 
   try { assert.equal((await post(input)).status, 429); }
   finally { release(); }
   assert.equal((await first).status, 200);
+});
+
+
+test('analysis evidence choices preserve the S2 source and keep invented quotes invalid', async () => {
+  const original = 'Summarise this text.\n\nA fictional university library piloted a laptop-loan service with 60 laptops. Each loan lasted 48 hours. Collection and return were available Tuesday to Friday, 9 am to 5 pm. During the pilot, 120 students borrowed a laptop. Of the 96 borrowers who answered an optional survey, 84 described the service as useful and 12 did not. The library did not measure grades, retention or long-term learning. It plans to review opening hours before deciding whether to continue the service.';
+  const raw = { taskId: 'summarisation', original, details: { source: 'LATER-PERSONALISATION-SENTINEL' }, preferences: {} };
+  const request = buildOpenAIRequest('analysis', raw);
+  const choices = request.text.format.schema.properties.criteria.items.properties.evidence.enum;
+  assert.ok(choices.includes(''));
+  assert.ok(choices.includes('Collection and return were available Tuesday to Friday, 9 am to 5 pm.'));
+  assert.ok(choices.includes('Of the 96 borrowers who answered an optional survey, 84 described the service as useful and 12 did not.'));
+  assert.ok(choices.every(quote => original.includes(quote)));
+  assert.doesNotMatch(JSON.stringify(request), /LATER-PERSONALISATION-SENTINEL/);
+  assert.ok(!choices.includes('9 a.m. to 5 p.m.'));
+  const result = await requestOpenAI('analysis', raw, { apiKey: 'fixture', fetchImpl: async () => {
+    const data = analysis();
+    data.criteria[0].evidence = 'Summarise this text.';
+    data.criteria.find(row => row.key === 'source').evidence = choices.find(quote => quote.includes('96 borrowers'));
+    return complete(data);
+  } });
+  assert.match(result.criteria.find(row => row.key === 'source').reason, /96 borrowers/);
+  const invented = analysis(); invented.criteria[0].evidence = 'All 120 borrowers found it useful';
+  assert.throws(() => validateResult(invented, 'analysis', normaliseInput(raw, 'analysis')), /not supplied/);
+});
+
+test('evidence choices work across all six tasks without leaking later material', () => {
+  for (const taskId of ['study', 'summarisation', 'coding', 'report', 'presentation', 'other']) {
+    const raw = { taskId, original: 'Review this supplied text: “60 laptops” — keep 48 hours.\nSecond line.', details: { source: 'PRIVATE-LATER-SENTINEL', ...(taskId === 'other' ? { taskDescription: 'Review a fictional schedule.' } : {}) }, preferences: { audience: 'LATER-AUDIENCE-SENTINEL' } };
+    const request = buildOpenAIRequest('analysis', raw);
+    const choices = request.text.format.schema.properties.criteria.items.properties.evidence.enum;
+    assert.ok(choices.every(quote => raw.original.includes(quote) || (raw.details.taskDescription || '').includes(quote)));
+    assert.doesNotMatch(JSON.stringify(request), /PRIVATE-LATER-SENTINEL|LATER-AUDIENCE-SENTINEL/);
+    if (taskId === 'other') assert.ok(choices.includes(raw.details.taskDescription));
+  }
+});
+
+test('long Unicode evidence choices are bounded, source-exact and request-isolated', () => {
+  const original = Array.from({ length: 80 }, (_, n) => `Line ${n}: ` + '🧑🏽‍🎓'.repeat(40)).join('\n');
+  const request = buildOpenAIRequest('analysis', { ...input, original });
+  const choices = request.text.format.schema.properties.criteria.items.properties.evidence.enum;
+  assert.equal(choices.length, 33);
+  assert.ok(choices.every(quote => original.includes(quote) && quote.length <= 1500));
+  assert.ok(choices.some(quote => quote.includes('Line 79:')));
+  const separate = buildOpenAIRequest('analysis', input);
+  assert.deepEqual(separate.text.format.schema.properties.criteria.items.properties.evidence.enum, ['', 'Explain phishing.']);
+  const rewrite = buildOpenAIRequest('rewrite', input);
+  assert.equal(rewrite.text.format.schema.properties.criteria, undefined);
 });
