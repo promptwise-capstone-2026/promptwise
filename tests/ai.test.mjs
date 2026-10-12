@@ -153,3 +153,50 @@ test('long Unicode evidence choices are bounded, source-exact and request-isolat
   const rewrite = buildOpenAIRequest('rewrite', input);
   assert.equal(rewrite.text.format.schema.properties.criteria, undefined);
 });
+
+
+test('rewrites retain the exact supplied S3 code when a provider omits it', async () => {
+  const code = 'def average(values):\n    total = 0\n    for value in values:\n        total += value\n    return total';
+  const raw = { taskId: 'coding', original: 'Help me fix this function.\n\n' + code,
+    details: { code, goal: 'Return the arithmetic mean; raise ValueError for an empty list.' }, preferences: {} };
+  let calls = 0;
+  const result = await requestOpenAI('rewrite', raw, { apiKey: 'fixture', fetchImpl: async (_, options) => {
+    calls++;
+    assert.equal(JSON.parse(JSON.parse(options.body).input).details.code, code);
+    return complete({ improvedPrompt: 'Fix the average function. Explain the minimal correction and give two tests.', warnings: ['Keep the existing function name.'] });
+  } });
+  assert.equal(calls, 1);
+  assert.ok(result.improvedPrompt.includes(code));
+  assert.match(result.improvedPrompt, /Relevant code — supplied material/);
+  assert.equal(result.improvedPrompt.split(code).length - 1, 1);
+  assert.deepEqual(result.warnings, ['Keep the existing function name.', 'Supplied material was added to the draft. Review the instructions and material before copying.']);
+  const retained = validateResult({ improvedPrompt: result.improvedPrompt, warnings: [] }, 'rewrite', normaliseInput(raw, 'rewrite'));
+  assert.equal(retained.improvedPrompt, result.improvedPrompt);
+  assert.deepEqual(retained.warnings, []);
+});
+
+test('coding rewrites preserve code supplied only inside the original request', () => {
+  const original = 'Explain this code.\n\ndef example():\n    return "```"';
+  const raw = normaliseInput({ taskId: 'coding', original, details: {}, preferences: {} }, 'rewrite');
+  const result = validateResult({ improvedPrompt: 'Explain the supplied function to a beginner.', warnings: [] }, 'rewrite', raw);
+  assert.ok(result.improvedPrompt.includes(original));
+  assert.match(result.improvedPrompt, /Original coding request/);
+  assert.ok(result.improvedPrompt.endsWith('\n````'));
+});
+
+test('rewrite material retention covers every task and refuses overflow without truncation', () => {
+  for (const taskId of ['study', 'summarisation', 'coding', 'report', 'presentation', 'other']) {
+    const source = 'Keep this exact supplied source: 84 of 96 respondents.';
+    const details = { source, ...(taskId === 'other' ? { taskDescription: 'Review a supplied passage.' } : {}) };
+    const raw = normaliseInput({ taskId, original: 'Review the supplied material.', details, preferences: {} }, 'rewrite');
+    const result = validateResult({ improvedPrompt: 'Review the material for the requested purpose.', warnings: [] }, 'rewrite', raw);
+    assert.ok(result.improvedPrompt.includes(source));
+  }
+  const raw = normaliseInput({ taskId: 'report', original: 'Review my draft.', details: { draft: 'Student draft.', criteria: 'Use three feedback points.' }, preferences: {} }, 'rewrite');
+  const result = validateResult({ improvedPrompt: 'Give feedback.', warnings: [] }, 'rewrite', raw);
+  assert.ok(result.improvedPrompt.includes(raw.details.draft));
+  assert.ok(result.improvedPrompt.includes(raw.details.criteria));
+  const tooLong = normaliseInput({ ...input, details: { source: 'S'.repeat(39990) } }, 'rewrite');
+  assert.throws(() => validateResult({ improvedPrompt: 'Review the supplied source.', warnings: [] }, 'rewrite', tooLong), /plus supplied material is too long/);
+  assert.equal(tooLong.details.source.length, 39990);
+});

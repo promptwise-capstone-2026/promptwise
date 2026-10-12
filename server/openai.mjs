@@ -99,12 +99,39 @@ export function normaliseInput(input, operation) {
   // First diagnosis intentionally excludes later personalisation information.
   return { taskId: task.id, original: input.original, details: operation === 'analysis' ? (task.id === 'other' ? { taskDescription: details.taskDescription } : {}) : details, preferences: operation === 'analysis' ? {} : preferences };
 }
+// Material is user data: preserve it deterministically when the rewrite omits
+// or paraphrases it. Do not ask the provider for another paid attempt.
+function preserveRewriteMaterials(prompt, input) {
+  const task = TASKS.find(task => task.id === input.taskId);
+  const materials = (task?.fields || []).filter(field => field.multiline)
+    .map(field => ({ label: field.label, text: input.details?.[field.key] }))
+    .filter(material => typeof material.text === 'string' && material.text.trim());
+  // A coding request may contain its only code in the original prompt. Retain
+  // that whole input rather than guessing where the code begins or ends.
+  if (input.taskId === 'coding' && !input.details?.code?.trim()) {
+    materials.push({ label: 'Original coding request', text: input.original });
+  }
+  let result = prompt;
+  let restored = false;
+  for (const material of materials) {
+    if (result.includes(material.text)) continue;
+    const runs = material.text.match(/`+/g) || [];
+    const fence = '`'.repeat(Math.max(3, ...runs.map(run => run.length + 1)));
+    result += `\n\n${material.label} — supplied material (verbatim):\n${fence}\n${material.text}\n${fence}`;
+    restored = true;
+  }
+  if (result.length > 40000) throw new ApiError(502, 'The rewritten prompt plus supplied material is too long. Use a smaller relevant excerpt; your input is unchanged.');
+  return { improvedPrompt: result, restored };
+}
+
 const validStrings = (values, max, length) => Array.isArray(values) && values.length <= max && values.every(value => typeof value === 'string' && value.length <= length);
 export function validateResult(data, operation, input) {
   if (!data || typeof data !== 'object' || !validStrings(data.warnings, 5, 1000)) throw new ApiError(502, 'The AI returned an invalid result. Try again; your input is unchanged.');
   if (operation === 'rewrite') {
     if (typeof data.improvedPrompt !== 'string' || !data.improvedPrompt.trim() || data.improvedPrompt.length > 40000) throw new ApiError(502, 'The AI did not return a complete prompt. Try again.');
-    return { mode: 'openai', improvedPrompt: data.improvedPrompt.trim(), warnings: data.warnings };
+    const preserved = preserveRewriteMaterials(data.improvedPrompt.trim(), input);
+    return { mode: 'openai', improvedPrompt: preserved.improvedPrompt,
+      warnings: preserved.restored ? [...data.warnings, 'Supplied material was added to the draft. Review the instructions and material before copying.'] : data.warnings };
   }
   const rows = data.criteria;
   if (!Array.isArray(rows) || rows.length !== 7 || new Set(rows.map(row => row?.key)).size !== 7) throw new ApiError(502, 'The AI did not return all seven criteria. Try again.');
