@@ -421,6 +421,8 @@ select.text-field { appearance: none; padding-right: 40px; background-image: lin
 .site-footer-links a { display: inline-flex; align-items: center; min-height: 44px; color: var(--ink); font-weight: 700; text-underline-offset: 3px; }
 .site-footer-links a[aria-current="page"] { text-decoration-thickness: 2px; }
 .site-footer-note { flex-basis: 100%; }
+.site-footer-licence { flex-basis: 100%; overflow-wrap: anywhere; }
+.site-footer-licence a { color: var(--ink); text-underline-offset: 3px; }
 
 /* ---------- About & team ---------- */
 

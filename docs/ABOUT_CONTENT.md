@@ -95,6 +95,20 @@ work, the information they share and their assessment requirements. Review
 suggestions and check facts and sources in any AI response. The final prompt is
 copied manually into the student's chosen tool.
 
+### Copyright & licensing
+
+© 2026 PromptWise Project Team: Luu Quoc Thai Tran, Noah Holt and Angela Liu.
+
+The team's original project documentation and educational explanatory text are
+licensed under [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/).
+Non-commercial sharing and adaptation require attribution, a licence link and
+identification of changes. Commercial reuse requires separate permission from
+the relevant rights holders, unless permitted by law.
+
+The notice excludes source code, code examples, third-party libraries, portraits,
+logos, user-supplied materials and AI-generated results. Their own rights and
+terms continue to apply. It does not grant exclusive rights to the underlying idea.
+
 **Return to prompt**
 
 ## Implementation notes — do not render as public copy

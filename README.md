@@ -165,6 +165,21 @@ and rewriting aligned with the original objectives; it is not approval of every
 extension. Optional History is user-authorised and academic scope confirmation
 remains pending.
 
+## Copyright and licensing
+
+© 2026 PromptWise Project Team: Luu Quoc Thai Tran, Noah Holt and Angela Liu.
+
+The team's original project documentation and educational explanatory text are
+licensed under [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/).
+Non-commercial sharing and adaptation require attribution, a licence link and
+identification of changes. Commercial reuse requires separate permission from
+the relevant rights holders, unless permitted by law.
+
+This is a content licence, not a software licence. See [LICENSE.md](LICENSE.md)
+for the scope and exclusions, including source code, third-party dependencies,
+portraits and user-supplied materials. Adding this notice does not publish the
+private repositories or assessment documents.
+
 ## Optional local AI testing
 
 See [AI setup and release guide](docs/AI_SETUP_AND_RELEASE.md). Copy `.env.example`

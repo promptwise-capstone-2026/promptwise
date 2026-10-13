@@ -322,8 +322,10 @@ function siteFooter() {
       <a href="#history" data-nav="history"${state.page === 'practice' ? ' aria-current="page"' : ''}>History</a>
       <a href="#about" data-nav="about"${onAbout ? ' aria-current="page"' : ''}>About &amp; team</a>
       <a href="#how-it-works" data-nav="how-it-works">How it works</a>
+      <a href="#licensing" data-nav="licensing">Licensing</a>
     </nav>
     <p class="site-footer-note">UTS Information Systems Capstone · 2026</p>
+    <p class="site-footer-licence">© 2026 PromptWise Project Team. Original documentation and educational content: <a href="https://creativecommons.org/licenses/by-nc/4.0/" rel="license">CC BY-NC 4.0</a>. <a href="#licensing" data-nav="licensing">Scope &amp; exclusions</a>.</p>
     <p class="session-note">${practiceStore.enabled ? 'History saved in this browser. Export important work.' : 'Progress stays in this tab only. Refreshing or starting again clears it.'}</p>
   </footer>`;
 }
@@ -837,6 +839,13 @@ function aboutPage() {
       <h2 id="about-responsible">Use responsibly</h2>
       <p>PromptWise supports prompt preparation. Students remain responsible for their work, the information they share and their assessment requirements. Review suggestions and check facts and sources in any AI response. The final prompt is copied manually into the student's chosen tool.</p>
     </section>
+    <section class="surface about-section" id="licensing" aria-labelledby="about-licensing">
+      <h2 id="about-licensing" tabindex="-1" data-fk="about-licensing">Copyright &amp; licensing</h2>
+      <p>© 2026 PromptWise Project Team: Luu Quoc Thai Tran, Noah Holt and Angela Liu.</p>
+      <p>The team's original project documentation and educational explanatory text are licensed under <a href="https://creativecommons.org/licenses/by-nc/4.0/" rel="license">Creative Commons Attribution-NonCommercial 4.0 International (CC BY-NC 4.0)</a>.</p>
+      <p>You may share and adapt the licensed material for non-commercial purposes if you credit the creators, link to the licence and identify changes. Commercial reuse requires separate permission from the relevant rights holders, unless permitted by law.</p>
+      <p>This notice does not license the app's source code, code examples, third-party libraries, portraits, logos, user-supplied materials or AI-generated results. Those items retain their own rights and terms. Copyright does not give the team exclusive ownership of the underlying idea.</p>
+    </section>
     <div class="about-actions"><button class="primary-button" type="button" data-action="close-about" data-fk="about-return">Return to prompt</button></div>
   </main>`;
 }
@@ -950,10 +959,12 @@ function navigate(screen, { fromHistory = false, replace = false, keepErrors = f
   }
 }
 
-const isAboutHash = () => location.hash === '#about' || location.hash === '#how-it-works';
+const ABOUT_SECTION_IDS = { 'how-it-works': '#about-how', licensing: '#about-licensing' };
+const aboutSectionFromHash = () => Object.hasOwn(ABOUT_SECTION_IDS, location.hash.slice(1)) ? location.hash.slice(1) : '';
+const isAboutHash = () => location.hash === '#about' || Boolean(aboutSectionFromHash());
 
 function showAboutSection(section) {
-  const target = section ? app.querySelector('#about-how') : app.querySelector('.screen-title');
+  const target = app.querySelector(ABOUT_SECTION_IDS[section] || '.screen-title');
   if (section) target?.scrollIntoView({ block: 'start' });
   else window.scrollTo({ top: 0, behavior: 'instant' });
   target?.focus({ preventScroll: true });
@@ -961,7 +972,7 @@ function showAboutSection(section) {
 
 // About is an auxiliary page: it keeps the workflow state untouched and records where to return.
 function openAbout(section = '', { fromHistory = false, replaceEntry = false } = {}) {
-  const hash = section ? '#how-it-works' : '#about';
+  const hash = Object.hasOwn(ABOUT_SECTION_IDS, section) ? `#${section}` : '#about';
   if (state.page === 'about') {
     if (!fromHistory) history.replaceState({ ...(history.state || {}), page: 'about' }, '', hash);
     showAboutSection(section);
@@ -1498,7 +1509,7 @@ app.addEventListener('click', event => {
     if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
     event.preventDefault();
     if(navLink.dataset.nav==='history')openHistory({id:navLink.dataset.record||''});
-    else openAbout(navLink.dataset.nav === 'how-it-works' ? 'how-it-works' : '');
+    else openAbout(Object.hasOwn(ABOUT_SECTION_IDS, navLink.dataset.nav) ? navLink.dataset.nav : '');
     return;
   }
   const step = event.target.closest('[data-step]');
@@ -1717,7 +1728,7 @@ window.addEventListener('popstate', event => {
   if (!event.state) {
     // A hash typed into the address bar: show the matching page and give the entry a proper state.
     if(isPracticeHash())practiceFromHash({replaceEntry:true});
-    else if (isAboutHash()) openAbout(location.hash === '#how-it-works' ? 'how-it-works' : '', { replaceEntry: true });
+    else if (isAboutHash()) openAbout(aboutSectionFromHash(), { replaceEntry: true });
     else navigate(state.page !== 'workflow' ? allowedScreen(state.returnTo?.screen ?? 0) : state.screen, { replace: true });
     return;
   }
@@ -1732,7 +1743,7 @@ window.addEventListener('popstate', event => {
   }
   if(event.state.page==='practice'){practiceFromHash({fromHistory:true});return;}
   if (event.state.page === 'about') {
-    openAbout(location.hash === '#how-it-works' ? 'how-it-works' : '', { fromHistory: true });
+    openAbout(aboutSectionFromHash(), { fromHistory: true });
     return;
   }
   const requested = Number.isInteger(event.state?.pw) ? event.state.pw : 0;
@@ -1776,7 +1787,7 @@ if(isPracticeHash()){
   state.returnTo={screen:0,scroll:0,focus:null,depth:historyDepth};practiceFromHash({replaceEntry:true});
 } else if (isAboutHash()) {
   // A direct visit to About has no workflow behind it; Return to prompt starts at Home.
-  const section = location.hash === '#how-it-works' ? 'how-it-works' : '';
+  const section = aboutSectionFromHash();
   state.page = 'about';
   state.returnTo = { screen: 0, scroll: 0, focus: null, depth: historyDepth };
   history.replaceState({ pw: 0, page: 'about', depth: historyDepth, sid: sessionId, back: false }, '', location.hash);
