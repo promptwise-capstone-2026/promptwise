@@ -1,7 +1,8 @@
 # Render demo setup
 
-Prepared 10 October 2026. This is a restricted capstone pilot, not production
-student accounts or a promise of public-service security. Hosting is a release
+Prepared 10 October 2026; public-access configuration updated 25 October 2026.
+This is a capstone demo, not production student accounts or a promise of
+public-service security. Hosting is a release
 choice requested by Thai. History remains the user-authorised extension; do not
 claim Amara approved history, authentication, dashboards or deployment. Her
 conditional support concerns internal API analysis/rewriting aligned with the
@@ -24,7 +25,8 @@ original objectives. No private report/contract has been edited.
 | NODE_VERSION | 24 |
 | HOST | 0.0.0.0 |
 | PROMPTWISE_HOSTED | true |
-| PROMPTWISE_DEMO_PASSWORD | A generated 32+ character password, saved privately |
+| PROMPTWISE_DEMO_ACCESS | public (also the default when unset) |
+| PROMPTWISE_DEMO_PASSWORD | Only required when DEMO_ACCESS is password; unused in public mode |
 | PROMPTWISE_AI_ENABLED | false initially |
 | OPENAI_API_KEY | The separate Render demo key, pasted privately |
 | OPENAI_MODEL | gpt-4.1-mini-2025-04-14 |
@@ -43,11 +45,13 @@ set PROMPTWISE_PUBLIC_ORIGIN to its exact HTTPS origin; only that host is accept
    depends on actually attaching the disk; a directory on ephemeral storage is
    not a persistent disk.
 6. Change Health Check Path to `/healthz`. It returns only `{ "ok": true }`,
-   makes no provider call and requires no password. `/api/config` is now protected,
-   so it must NOT be the Render health check. Health is process liveness, not a
+   makes no provider call and requires no password. `/api/config` reports AI
+   availability, so it must NOT be the Render health check. Health is process liveness, not a
    guarantee that OpenAI or storage is currently healthy.
 7. Only deploy after release authorisation. Open the provided HTTPS URL.
-   The browser asks for **username `demo`** and the generated demo password.
+   In public mode the browser opens the app without credentials. For optional
+   password mode, set PROMPTWISE_DEMO_ACCESS=password and a generated 32+
+   character PROMPTWISE_DEMO_PASSWORD; the username is demo.
    Confirm Home, About and History, local mode, private paths denied, no secrets
    in the page/config, current service-worker version and the expected commit.
 8. After checking disk attachment, API key permissions, model access and spending
@@ -57,12 +61,20 @@ set PROMPTWISE_PUBLIC_ORIGIN to its exact HTTPS origin; only that host is accept
 
 ## Controls implemented
 
-- Hosted app content/assets and API routes require HTTP Basic authentication.
-  The content-free health endpoint, `/demo` recovery page and `/sw.js` cleanup
-  worker are public. The recovery resources still require the configured Host
-  and HTTPS. They contain no student work or credentials. Credentials use fixed-size
-  hashes and constant-time comparison. Requires HTTPS at the reverse proxy,
-  exact configured Host, exact Origin for AI POSTs and no cross-site fetches.
+Public-access verification on 25 October 2026: all 75 regression tests passed
+using mocked provider responses. The added checks cover anonymous app/config
+access, private-file denial, Host/HTTPS/origin validation, shared cooldown,
+reservation-budget exhaustion and call-limit persistence after restart.
+Password-mode checks remain in the suite. No real OpenAI calls were made by
+these regression tests. Existing usage storage is retained without reset.
+
+- Hosted app content/assets and API routes are public by default. Optional
+  password mode restores HTTP Basic authentication. Both modes retain HTTPS at
+  the reverse proxy, the exact configured Host, exact Origin for AI POSTs and
+  rejection of cross-site requests. Public access does not expose private server
+  files, credentials, usage storage or any other user's browser-local History.
+  Password mode uses fixed-size hashes and constant-time comparison. The health
+  endpoint, `/demo` recovery page and `/sw.js` cleanup worker remain public.
 - Render terminates TLS; only use this proxy setup with a trusted edge. The
   application trusts its X-Forwarded-Proto indication, not arbitrary client IP
   headers. It does not authenticate users by IP.
@@ -87,7 +99,7 @@ set PROMPTWISE_PUBLIC_ORIGIN to its exact HTTPS origin; only that host is accept
 
 ## Limitations and operation
 
-- A shared password is pilot access, not per-student sign-in, individual revocation,
+- In optional password mode, a shared password is pilot access, not per-student sign-in, individual revocation,
   accounts or cross-device history. Do not reuse an account password. Share the
   demo password privately with intended testers, never the API key.
 - Browsers may remember HTTP Basic credentials until their session ends. There

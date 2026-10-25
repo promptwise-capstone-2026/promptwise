@@ -24,7 +24,7 @@ function http(url, options = {}) {
 const password = 'fixture-demo-password-32-characters';
 const origin = 'https://demo.example';
 const input = { taskId: 'study', original: 'Explain phishing.', details: {}, preferences: {} };
-const base = { PROMPTWISE_HOSTED: 'true', PROMPTWISE_PUBLIC_ORIGIN: origin, PROMPTWISE_DEMO_PASSWORD: password };
+const base = { PROMPTWISE_HOSTED: 'true', PROMPTWISE_DEMO_ACCESS: 'password', PROMPTWISE_PUBLIC_ORIGIN: origin, PROMPTWISE_DEMO_PASSWORD: password };
 const basic = 'Basic ' + Buffer.from('demo:' + password).toString('base64');
 const headers = { Host: 'demo.example', 'X-Forwarded-Proto': 'https', Authorization: basic };
 async function directory(t) { const d = await mkdtemp(join(tmpdir(), 'pw-hosted-')); t.after(() => rm(d, { recursive: true, force: true })); return d; }
@@ -53,6 +53,72 @@ test('hosted configuration requires HTTPS, a strong shared password and supporte
   for (const budget of ['0', '-1', 'NaN', '100', '0.001']) assert.throws(() => createUsageAllowance({ PROMPTWISE_DATA_DIR: dir, PROMPTWISE_AI_BUDGET_USD: budget }, 50), /BUDGET/);
   await writeFile(join(dir, 'demo-usage.sqlite'), 'corrupted database');
   assert.throws(() => createUsageAllowance({ PROMPTWISE_DATA_DIR: dir }, 50));
+});
+
+test('public hosted access is the default and password mode remains explicit', () => {
+  for (const access of [undefined, 'public']) {
+    const config = { ...base, PROMPTWISE_DEMO_ACCESS: access, PROMPTWISE_DEMO_PASSWORD: '' };
+    const hosted = createHostedAccess(config);
+    assert.equal(hosted.origin, origin);
+  }
+  assert.throws(() => createHostedAccess({ ...base, PROMPTWISE_DEMO_ACCESS: 'typo' }), /DEMO_ACCESS/);
+  assert.throws(() => createHostedAccess({ ...base, PROMPTWISE_DEMO_PASSWORD: '' }), /DEMO_PASSWORD/);
+});
+
+test('public visitors can load the app and config without exposing private files or secrets', async t => {
+  const f = await fixture(t, { PROMPTWISE_DEMO_ACCESS: undefined, PROMPTWISE_AI_ENABLED: 'false' });
+  for (const path of ['/', '/index.html', '/src/app.js', '/api/config', '/sw.js']) {
+    const response = await f.get(path, { Authorization: '' });
+    assert.equal(response.status, 200, path);
+    assert.equal(response.headers.get('www-authenticate'), null);
+    assert.doesNotMatch(await response.text(), /fixture-secret-never-real|fixture-demo-password-32-characters/);
+  }
+  for (const path of ['/.env', '/server/hosted.mjs', '/data/demo-usage.sqlite', '/private/report.pdf']) {
+    assert.equal((await f.get(path, { Authorization: '' })).status, 403, path);
+  }
+  assert.equal((await f.get('/', { Authorization: '', Host: 'evil.example' })).status, 421);
+  assert.equal((await f.get('/', { Authorization: '', 'X-Forwarded-Proto': 'http' })).status, 403);
+});
+
+test('public AI keeps origin checks and persistent shared call limits without a password', async t => {
+  let calls = 0;
+  const f = await fixture(t, { PROMPTWISE_DEMO_ACCESS: 'public', PROMPTWISE_DEMO_PASSWORD: '', PROMPTWISE_AI_MAX_CALLS: '1' }, async () => { calls++; return complete(); });
+  const anonymous = { Authorization: '' };
+  for (const extra of [{ Origin: 'https://evil.example' }, { Origin: '' }, { 'Sec-Fetch-Site': 'cross-site' }]) {
+    assert.equal((await f.post(input, { ...anonymous, ...extra })).status, 403);
+  }
+  assert.equal(calls, 0);
+  assert.equal((await (await f.get('/api/config', anonymous)).json()).aiAvailable, true);
+  const ok = await f.post(input, anonymous);
+  assert.equal(ok.status, 200);
+  assert.doesNotMatch(await ok.text(), /fixture-secret|fixture-demo-password/);
+  assert.equal((await f.post(input, anonymous)).status, 429);
+  await f.restart();
+  assert.equal((await f.post(input, { ...anonymous, 'X-Forwarded-For': '8.8.8.8' })).status, 429);
+  assert.equal(calls, 1);
+});
+
+test('public visitors share the cooldown and cannot bypass an exhausted reservation budget', async t => {
+  let calls = 0;
+  const f = await fixture(t, { PROMPTWISE_DEMO_ACCESS: 'public', PROMPTWISE_AI_MAX_CALLS: '100' }, async () => { calls++; return complete(); });
+  assert.equal((await f.post(input, { Authorization: '' })).status, 200);
+  const limited = await f.post(input, { Authorization: '', 'X-Forwarded-For': '9.9.9.9' });
+  assert.equal(limited.status, 429);
+  assert.match((await limited.json()).error, /10 seconds/);
+  await f.restart();
+  assert.equal((await f.post(input, { Authorization: '' })).status, 429);
+  assert.equal(calls, 1);
+
+  const budget = await fixture(t, { PROMPTWISE_DEMO_ACCESS: 'public', PROMPTWISE_AI_BUDGET_USD: '0.01' }, async () => { calls++; return complete(); });
+  const seed = createUsageAllowance(budget.env, 100);
+  seed.reserve(9999, 1);
+  seed.close();
+  const exhausted = await budget.post(input, { Authorization: '' });
+  assert.equal(exhausted.status, 429);
+  assert.match((await exhausted.json()).error, /allowance/);
+  await budget.restart();
+  assert.equal((await budget.post(input, { Authorization: '' })).status, 429);
+  assert.equal(calls, 1);
 });
 
 test('reservations cover Unicode body bytes and maximum output, not reported actual billing', () => {

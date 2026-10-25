@@ -9,9 +9,11 @@ draft the student can review, edit and copy into their chosen AI tool.
 **[Open the hosted demo](https://promptwise-ljw9.onrender.com/)** ·
 [Team source repository](https://github.com/promptwise-capstone-2026/promptwise)
 
-The demo requires shared pilot access. Ask the project lead privately for access;
-passwords and API keys are not included in this repository. Testing the hosted
-website does not require a GitHub account, local installation or your own API key.
+The hosted demo is open without an account or password. OpenAI analysis and
+rewriting share a limited allowance; local rules, editing and copying remain
+available when it is exhausted. API keys are never included in browser code.
+Using the website does not require GitHub access, local installation or your own
+API key. The source repository remains private.
 
 ## Current features
 
@@ -129,7 +131,7 @@ See [browser access fix and remaining device checks](docs/BROWSER_ACCESS_FIX.md)
 
 Known limits:
 
-- Shared demo password; no individual accounts, sign-out UI or cross-device sync.
+- Public demo with a shared AI allowance; no individual accounts or cross-device sync.
 - Reopening or reloading the hosted demo requires a connection. Local development
   retains offline support; saved History is still local to each browser.
 - No OCR or interpretation of scanned pages, images, diagrams, audio or video.
@@ -237,13 +239,16 @@ This history extension is user-authorised; academic scope confirmation remains p
 
 ## Hosted demo
 
-See [Render demo setup](docs/RENDER_DEMO_SETUP.md). The hosted pilot uses one
-shared browser password prompt, not student accounts. AI usage counters persist
-on a small server disk; student History remains optional and browser-local.
-After deploying the browser-access fix, an affected browser can open `/demo` to
-update old app files without deleting History, then enter the team credentials.
-That recovery page and its content-free worker are public; app content and APIs
-remain password-protected.
+See [Render demo setup](docs/RENDER_DEMO_SETUP.md). From 25 October 2026 the hosted
+demo defaults to public access, with no username or password. AI usage counters
+still persist on the server disk; student History remains optional and
+browser-local. No allowance is reset by this access change.
+Set `PROMPTWISE_DEMO_ACCESS=password` with a strong `PROMPTWISE_DEMO_PASSWORD`
+to restore the optional shared browser password prompt. `public` is the default;
+other values are rejected. Do not disable `PROMPTWISE_HOSTED` to remove the gate,
+because hosted mode also enables the durable usage controls.
+An affected browser can still open `/demo` to update old app files without
+deleting History. The hosted worker remains free of offline fetch interception.
 The project lead has checked the initial hosted workflow and counter persistence
 as recorded above. For any new deployment, keep AI disabled until access and
 persistent storage are checked. Publishing code, changing repository visibility,

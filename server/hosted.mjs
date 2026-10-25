@@ -6,17 +6,19 @@ import { ApiError, DEFAULT_MODEL } from './openai.mjs';
 
 const digest = text => createHash('sha256').update(text).digest();
 
-// A shared pilot password, not student accounts. Render terminates HTTPS; the
-// service must not be exposed directly around that proxy. Never trust client IP
-// headers for quotas: all pilot users share a durable global allowance instead.
+// Public demo access is independent of the durable global AI allowance. Set
+// PROMPTWISE_DEMO_ACCESS=password to restore the optional shared password gate.
+// Render terminates HTTPS; never trust client IP headers for extra allowances.
 export function createHostedAccess(env) {
   if (env.PROMPTWISE_HOSTED !== 'true') return null;
+  const access = env.PROMPTWISE_DEMO_ACCESS ?? 'public';
+  if (!['public', 'password'].includes(access)) throw new Error('PROMPTWISE_DEMO_ACCESS must be public or password');
   const raw = env.PROMPTWISE_PUBLIC_ORIGIN || (env.RENDER_EXTERNAL_HOSTNAME ? `https://${env.RENDER_EXTERNAL_HOSTNAME}` : '');
   let origin;
   try { origin = new URL(raw); } catch { throw new Error('Hosted mode needs PROMPTWISE_PUBLIC_ORIGIN or RENDER_EXTERNAL_HOSTNAME'); }
   if (origin.protocol !== 'https:' || origin.username || origin.password || origin.pathname !== '/' || origin.search || origin.hash) throw new Error('Hosted origin must be a plain HTTPS origin');
   const password = env.PROMPTWISE_DEMO_PASSWORD || '';
-  if (!/^[\x21-\x7e]{24,256}$/.test(password)) throw new Error('PROMPTWISE_DEMO_PASSWORD must contain 24–256 printable non-space characters');
+  if (access === 'password' && !/^[\x21-\x7e]{24,256}$/.test(password)) throw new Error('PROMPTWISE_DEMO_PASSWORD must contain 24–256 printable non-space characters');
   const expected = digest(`demo:${password}`);
   return {
     origin: origin.origin,
@@ -30,7 +32,7 @@ export function createHostedAccess(env) {
         response.writeHead(403).end('Open the demo over HTTPS.');
         return false;
       }
-      if (!credentialsRequired) return true;
+      if (!credentialsRequired || access === 'public') return true;
       const header = request.headers.authorization || '';
       let credentials = '';
       if (header.length <= 1024 && /^Basic [A-Za-z0-9+/]+={0,2}$/i.test(header)) credentials = Buffer.from(header.slice(6), 'base64').toString('utf8');

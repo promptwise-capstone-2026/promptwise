@@ -6,8 +6,8 @@ const reply = (response, status, body) => {
   response.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' }).end(JSON.stringify(body));
 };
 
-// Local AI stays loopback-only. Hosted AI requires HTTPS, a team password and a
-// persistent global allowance; forwarding headers cannot create extra allowances.
+// Local AI stays loopback-only. Hosted AI retains HTTPS, origin checks and a
+// persistent global allowance with either public or password-protected access.
 export function createApiHandler({ env = process.env, fetchImpl = fetch, timeoutMs = 45000, hosted = createHostedAccess(env) } = {}) {
   const enabled = env.PROMPTWISE_AI_ENABLED === 'true' && Boolean(env.OPENAI_API_KEY);
   const maxCalls = Number(env.PROMPTWISE_AI_MAX_CALLS || 50);
