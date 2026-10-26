@@ -121,9 +121,10 @@ terms continue to apply. It does not grant exclusive rights to the underlying id
   it later using actual work/evidence, including AI assistance where applicable.
 - Thai and Amara portraits are supplied in `public/team/thai.jpeg` and
   `public/team/amara-atif.jpeg`. All four avatar spaces display at 96 × 96 CSS px;
-  Noah and Angela use decorative initials while their photos are pending.
+  Noah's supplied portrait is `public/team/noah.png`; Angela uses decorative initials
+  while her photo is pending.
   Thai supplied an aligned square portrait; display it without extra zoom or offsets.
-  To add a remaining photo, save `noah.jpeg` or `angela.jpeg`, update its TEAM
+  To add Angela's remaining photo, save `angela.jpeg`, update its TEAM
   photo path in `src/app.js`, add the exact URL to the server allowlist and
   service-worker assets, and bump the cache. Do not cache a missing photo.
   Profile URLs are still pending; do not substitute generic or invented portraits.

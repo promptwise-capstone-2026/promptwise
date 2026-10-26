@@ -790,7 +790,7 @@ const ABOUT_STEPS = [
 // Responsibilities supplied by the team; these do not certify completion of planned tests.
 const TEAM = [
   { id: 'thai', initials: 'TT', photo: '/public/team/thai.jpeg', name: 'Luu Quoc Thai Tran', role: 'Application development & technical integration', responsibilities: 'System architecture, prompt-framework implementation, application development, AI/API integration, evaluation planning and overall project integration.' },
-  { id: 'noah', initials: 'NH', photo: '', name: 'Noah Holt', role: 'Prompt engineering research', responsibilities: 'GenAI in higher education, prompt-engineering principles and prompt quality, existing-tool research, test prompts/use cases and related literature review contributions.' },
+  { id: 'noah', initials: 'NH', photo: '/public/team/noah.png', name: 'Noah Holt', role: 'Prompt engineering research', responsibilities: 'GenAI in higher education, prompt-engineering principles and prompt quality, existing-tool research, test prompts/use cases and related literature review contributions.' },
   { id: 'angela', initials: 'AL', photo: '', name: 'Angela Liu', role: 'UX & student learning', responsibilities: 'Student use of GenAI and AI-assisted learning, user requirements, mobile UI and user flows, wireframes and usability-test planning.' }
 ];
 

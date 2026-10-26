@@ -30,6 +30,7 @@ test('the server serves the complete browser bundle, including queries and HEAD'
     assert.equal(response.headers.get('cache-control'), 'no-store');
     if (path.endsWith('.mjs')) assert.match(response.headers.get('content-type'), /javascript/);
     if (path.endsWith('.jpeg')) assert.equal(response.headers.get('content-type'), 'image/jpeg');
+    if (path.endsWith('.png')) assert.equal(response.headers.get('content-type'), 'image/png');
   }
   assert.equal((await fetch(url + '/')).status, 200);
   const head = await fetch(url + '/index.html', { method: 'HEAD' });
